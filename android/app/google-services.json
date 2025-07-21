@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "719421565871",
+    "firebase_url": "https://catat-meter-62d87-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "catat-meter-62d87",
+    "storage_bucket": "catat-meter-62d87.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:719421565871:android:2daacdfa413b0e1c2e5d5a",
+        "android_client_info": {
+          "package_name": "com.example.catat_meter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfDQeWrkBFsFS17aJO8rfydPi1cPr0DrY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
