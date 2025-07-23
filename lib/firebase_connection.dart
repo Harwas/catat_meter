@@ -1,6 +1,5 @@
-// lib/firebase_connection.dart
-import 'package:catat_meter/firebase_option.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'package:flutter/foundation.dart';
 
 class FirebaseService {
@@ -8,6 +7,6 @@ class FirebaseService {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    debugPrint('✅ Firebase berhasil diinisialisasi');
+    debugPrint('✅ Firebase berhasil diinisialisasi!');
   }
 }

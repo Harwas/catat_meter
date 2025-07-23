@@ -1,7 +1,6 @@
-import 'package:catat_meter/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'firebase_connection.dart';
-
+import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +19,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: HomeScreen(), // ⬅️ ini akan pakai file home_screen.dart
+      home: HomeScreen(),
     );
   }
 }
