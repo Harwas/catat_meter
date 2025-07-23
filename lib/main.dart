@@ -1,39 +1,10 @@
-import 'package:catat_meter/firebase_options.dart';
+// lib/main.dart
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_database/firebase_database.dart';
+import 'firebase_connection.dart';
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Inisialisasi Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  // Data dummy pelanggan
-  final Map<String, dynamic> dummyData = {
-    'id': 'P001',
-    'nama': 'Roy Harwa',
-    'qr_code': 'QR123456',
-    'tarif': 1500,
-    'catatan_meter': 'Awal bulan Juli',
-    'alamat': 'Desa Maju Jaya RT 03',
-    'no_hp': '081234567890',
-    'stan_awal': 120,
-    'foto': 'https://example.com/foto.jpg',
-  };
-
-  // Kirim data ke Firebase
-  final dbRef = FirebaseDatabase.instance.ref().child('pelanggan/P001');
-
-  try {
-    await dbRef.set(dummyData);
-    debugPrint('✅ Data dummy berhasil dikirim ke Firebase');
-  } catch (e) {
-    debugPrint('❌ Gagal mengirim data: $e');
-  }
-
+  await FirebaseService.initializeFirebase();
   runApp(const MyApp());
 }
 
@@ -64,7 +35,7 @@ class HomeScreen extends StatelessWidget {
       ),
       body: const Center(
         child: Text(
-          'Data Dummy telah dikirim ke Firebase!',
+          'Firebase sudah terkoneksi!',
           style: TextStyle(fontSize: 16),
         ),
       ),
