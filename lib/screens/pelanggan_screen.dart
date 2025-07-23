@@ -1,9 +1,7 @@
-// ignore_for_file: prefer_const_constructors
-
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'detail_pelanggan_screen.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
+import 'tambah_pelanggan_screen.dart';
 
 class PelangganScreen extends StatefulWidget {
   @override
@@ -11,29 +9,29 @@ class PelangganScreen extends StatefulWidget {
 }
 
 class _PelangganScreenState extends State<PelangganScreen> {
-  List<Map<String, String>> pelangganList = [
-    {
-      'id': 'P1001A',
-      'nama': 'Budi Santoso',
-      'alamat': 'Padukuhan A',
-      'tanggal': '22 Juli 2025',
-      'avatar': '👨'
-    },
-    {
-      'id': 'R1002A',
-      'nama': 'Siti Aminah',
-      'alamat': 'Padukuhan B',
-      'tanggal': '22 Juli 2025',
-      'avatar': '👩'
-    },
-    {
-      'id': 'R1003A',
-      'nama': 'Andi Wijaya',
-      'alamat': 'Padukuhan C',
-      'tanggal': '22 Juli 2025',
-      'avatar': '👱'
-    },
-  ];
+  List<Map<String, String>> pelangganList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPelangganFromFirebase();
+  }
+
+  Future<void> _loadPelangganFromFirebase() async {
+    final dbRef = FirebaseDatabase.instance.ref('pelanggan');
+    final snapshot = await dbRef.get();
+    if (snapshot.exists) {
+      final data = snapshot.value as Map?;
+      pelangganList = [];
+      if (data != null) {
+        data.forEach((key, value) {
+          final map = Map<String, dynamic>.from(value);
+          pelangganList.add(map.map((k, v) => MapEntry(k, v.toString())));
+        });
+      }
+      setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +46,23 @@ class _PelangganScreenState extends State<PelangganScreen> {
           ],
         ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          // Navigasi ke screen tambah pelanggan
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => TambahPelangganScreen()),
+          );
+          if (result != null) {
+            // Jika ada data baru, reload dari Firebase
+            _loadPelangganFromFirebase();
+          }
+        },
+        backgroundColor: Colors.blue,
+        child: const Icon(Icons.add, color: Colors.white),
+        tooltip: 'Tambah Pelanggan',
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
     );
   }
 
@@ -99,6 +113,9 @@ class _PelangganScreenState extends State<PelangganScreen> {
   }
 
   Widget _buildPelangganList() {
+    if (pelangganList.isEmpty) {
+      return Center(child: Text('Belum ada data pelanggan.'));
+    }
     return ListView.builder(
       padding: EdgeInsets.only(bottom: 80),
       itemCount: pelangganList.length,
@@ -148,13 +165,6 @@ class _PelangganScreenState extends State<PelangganScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(pelanggan['id'] ?? '', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
-                    SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: () {
-                        _tambahPelanggan(data: pelanggan, index: index);
-                      },
-                      child: Icon(Icons.edit, color: Colors.blueAccent),
-                    ),
                   ],
                 ),
               ],
@@ -171,56 +181,6 @@ class _PelangganScreenState extends State<PelangganScreen> {
       child: Container(
         height: 60,
         color: Colors.yellow[100],
-      ),
-    );
-  }
-
-  void _tambahPelanggan({Map<String, String>? data, int? index}) {
-    final idController = TextEditingController(text: data?['id'] ?? '');
-    final namaController = TextEditingController(text: data?['nama'] ?? '');
-    final alamatController = TextEditingController(text: data?['alamat'] ?? '');
-    final tanggalController = TextEditingController(text: data?['tanggal'] ?? '');
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(index == null ? 'Tambah Pelanggan' : 'Edit Pelanggan'),
-        content: SingleChildScrollView(
-          child: Column(
-            children: [
-              TextField(controller: idController, decoration: InputDecoration(labelText: 'ID')),
-              TextField(controller: namaController, decoration: InputDecoration(labelText: 'Nama')),
-              TextField(controller: alamatController, decoration: InputDecoration(labelText: 'Padukuhan')),
-              TextField(controller: tanggalController, decoration: InputDecoration(labelText: 'Tanggal')),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                final newData = {
-                  'id': idController.text,
-                  'nama': namaController.text,
-                  'alamat': alamatController.text,
-                  'tanggal': tanggalController.text,
-                  'avatar': data?['avatar'] ?? '👤',
-                };
-                if (index != null) {
-                  pelangganList[index] = newData;
-                } else {
-                  pelangganList.add(newData);
-                }
-              });
-              Navigator.pop(context);
-            },
-            child: Text('Simpan'),
-          ),
-        ],
       ),
     );
   }
@@ -252,4 +212,3 @@ class WaveClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
-
