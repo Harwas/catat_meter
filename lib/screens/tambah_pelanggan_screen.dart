@@ -24,7 +24,20 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
 
   bool _loading = false;
 
-  String generateId(String tarif, String cater, int nomor) {
+  Future<int> getNextUrut(String tarif, String cater) async {
+    String counterKey = "${tarif}_${cater}";
+    DatabaseReference counterRef = FirebaseDatabase.instance.ref('counter/$counterKey');
+
+    final snapshot = await counterRef.get();
+    int nomor = 1;
+    if (snapshot.exists) {
+      nomor = (snapshot.value as int) + 1;
+    }
+    await counterRef.set(nomor); // update counter
+    return nomor;
+  }
+
+  String generateId(String tarif, String cater, int nomorUrut) {
     // Akhiran ID berdasarkan cater
     String kodeAkhir = cater.toLowerCase() == "roy"
         ? "A"
@@ -33,19 +46,21 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
             : cater.toLowerCase() == "putra"
                 ? "C"
                 : "X";
-    // ID: <TARIF>00<nomor2digit><AKHIR>
-    return "${tarif.toUpperCase()}00${nomor.toString().padLeft(2, '0')}$kodeAkhir";
+    // Format: R1001A (tanpa angka 1 ganda)
+    return "${tarif.toUpperCase()}${nomorUrut.toString().padLeft(3, '0')}$kodeAkhir";
   }
 
   void _simpanPelanggan() async {
     if (!_formKey.currentState!.validate() || selectedTarif == null || selectedCater == null) return;
     setState(() => _loading = true);
 
-    final nomorPelanggan = DateTime.now().millisecondsSinceEpoch % 100; // random 2 digit
-    final id = generateId(selectedTarif!, selectedCater!, nomorPelanggan);
+    // Menggunakan counter, bukan scan semua data pelanggan
+    final nomorUrut = await getNextUrut(selectedTarif!, selectedCater!);
+    final id = generateId(selectedTarif!, selectedCater!, nomorUrut);
 
     final pelanggan = {
       'id': id,
+      'tarif_cater': "${selectedTarif!}_${selectedCater!}",
       'nama': namaController.text,
       'qr_code_url': "",
       'cater': selectedCater!,
