@@ -10,29 +10,60 @@ class TambahPelangganScreen extends StatefulWidget {
 
 class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
   final _formKey = GlobalKey<FormState>();
-  final idController = TextEditingController();
   final namaController = TextEditingController();
   final alamatController = TextEditingController();
-  final tanggalController = TextEditingController();
-  final avatarController = TextEditingController();
+  final noTelponController = TextEditingController();
+  final koordinatController = TextEditingController();
+  DateTime? tanggalSambung;
+
+  // Dropdown options
+  final List<String> tarifList = ['R1', 'S1', 'P1'];
+  final List<String> caterList = ['Roy', 'Sari', 'Putra'];
+  String? selectedTarif;
+  String? selectedCater;
 
   bool _loading = false;
 
+  String generateId(String tarif, String cater, int nomor) {
+    // Akhiran ID berdasarkan cater
+    String kodeAkhir = cater.toLowerCase() == "roy"
+        ? "A"
+        : cater.toLowerCase() == "sari"
+            ? "B"
+            : cater.toLowerCase() == "putra"
+                ? "C"
+                : "X";
+    // ID: <TARIF>00<nomor2digit><AKHIR>
+    return "${tarif.toUpperCase()}00${nomor.toString().padLeft(2, '0')}$kodeAkhir";
+  }
+
   void _simpanPelanggan() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate() || selectedTarif == null || selectedCater == null) return;
     setState(() => _loading = true);
 
+    final nomorPelanggan = DateTime.now().millisecondsSinceEpoch % 100; // random 2 digit
+    final id = generateId(selectedTarif!, selectedCater!, nomorPelanggan);
+
     final pelanggan = {
-      'id': idController.text,
+      'id': id,
       'nama': namaController.text,
+      'qr_code_url': "",
+      'cater': selectedCater!,
       'alamat': alamatController.text,
-      'tanggal': tanggalController.text,
-      'avatar': avatarController.text.isNotEmpty ? avatarController.text : '👤',
+      'no_telpon': int.tryParse(noTelponController.text) ?? 0,
+      'koordinat': koordinatController.text,
+      'tanggal_sambung': tanggalSambung?.toIso8601String() ?? "",
+      // Data awal pelanggan baru
+      'tanggal_catat': "",
+      'stand_awal': 0,
+      'stand_baru': 0,
+      'kubikasi': 0,
+      'tagihan': 0,
+      'dibayar': 0,
+      'terhutang': 0,
     };
 
-    await FirebaseDatabase.instance
-        .ref('pelanggan/${pelanggan['id']}')
-        .set(pelanggan);
+    await FirebaseDatabase.instance.ref('pelanggan/$id').set(pelanggan);
 
     setState(() => _loading = false);
     Navigator.pop(context, pelanggan);
@@ -48,36 +79,86 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
           key: _formKey,
           child: ListView(
             children: [
-              TextFormField(
-                controller: idController,
-                decoration: InputDecoration(labelText: 'ID'),
-                validator: (v) => v == null || v.isEmpty ? 'ID wajib diisi' : null,
+              DropdownButtonFormField<String>(
+                value: selectedTarif,
+                items: tarifList.map((tarif) {
+                  return DropdownMenuItem(
+                    value: tarif,
+                    child: Text(tarif),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedTarif = value;
+                  });
+                },
+                decoration: InputDecoration(labelText: 'Tarif'),
+                validator: (v) => v == null ? 'Wajib pilih tarif' : null,
+              ),
+              DropdownButtonFormField<String>(
+                value: selectedCater,
+                items: caterList.map((cater) {
+                  return DropdownMenuItem(
+                    value: cater,
+                    child: Text(cater),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedCater = value;
+                  });
+                },
+                decoration: InputDecoration(labelText: 'Cater'),
+                validator: (v) => v == null ? 'Wajib pilih cater' : null,
               ),
               TextFormField(
                 controller: namaController,
-                decoration: InputDecoration(labelText: 'Nama'),
-                validator: (v) => v == null || v.isEmpty ? 'Nama wajib diisi' : null,
+                decoration: InputDecoration(labelText: 'Nama Pelanggan'),
+                validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
               ),
               TextFormField(
                 controller: alamatController,
-                decoration: InputDecoration(labelText: 'Padukuhan'),
-                validator: (v) => v == null || v.isEmpty ? 'Padukuhan wajib diisi' : null,
+                decoration: InputDecoration(labelText: 'Alamat'),
               ),
               TextFormField(
-                controller: tanggalController,
-                decoration: InputDecoration(labelText: 'Tanggal (misal: 22 Juli 2025)'),
-                validator: (v) => v == null || v.isEmpty ? 'Tanggal wajib diisi' : null,
+                controller: noTelponController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(labelText: 'No. Telpon'),
               ),
               TextFormField(
-                controller: avatarController,
-                decoration: InputDecoration(labelText: 'Avatar (emoji, opsional)'),
+                controller: koordinatController,
+                decoration: InputDecoration(labelText: 'Koordinat'),
+              ),
+              const SizedBox(height: 8),
+              Text('Tanggal Sambung', style: TextStyle(fontWeight: FontWeight.bold)),
+              InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: tanggalSambung ?? DateTime.now(),
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) {
+                    setState(() => tanggalSambung = picked);
+                  }
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    tanggalSambung == null
+                        ? 'Pilih tanggal'
+                        : "${tanggalSambung!.day}-${tanggalSambung!.month}-${tanggalSambung!.year}",
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: _loading ? null : _simpanPelanggan,
                 icon: Icon(Icons.save),
                 label: Text(_loading ? 'Menyimpan...' : 'Simpan'),
-              )
+              ),
             ],
           ),
         ),
