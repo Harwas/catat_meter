@@ -1,79 +1,126 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:intl/intl.dart';
 
 class FormKalkulasiScreen extends StatefulWidget {
   final Map<dynamic, dynamic> pelanggan;
-  const FormKalkulasiScreen({Key? key, required this.pelanggan}) : super(key: key);
+  const FormKalkulasiScreen({required this.pelanggan, Key? key}) : super(key: key);
 
   @override
-  _FormKalkulasiScreenState createState() => _FormKalkulasiScreenState();
+  State<FormKalkulasiScreen> createState() => _FormKalkulasiScreenState();
 }
 
 class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _standBaruController = TextEditingController();
   bool _loading = false;
   int _kubikasi = 0;
   int _tagihan = 0;
-  int _tarifPerKubik = 0;
+
+  int _toInt(dynamic value) => (value ?? 0).toInt();
+
+  String _getJenisTarif() {
+    return widget.pelanggan['tarif_cater']?.toString().split('_').first ?? 'P1';
+  }
 
   @override
   void initState() {
     super.initState();
-    _standBaruController.text = widget.pelanggan['stand_baru']?.toString() ?? '';
-    _loadTarif();
+    _standBaruController.text = _toInt(widget.pelanggan['stand_baru']).toString();
+    _hitungKubikasi();
   }
 
-  Future<void> _loadTarif() async {
-    final jenisTarif = widget.pelanggan['tarif'] ?? 'P1';
-    final snapshot = await FirebaseDatabase.instance.ref('tarif/$jenisTarif').get();
-    setState(() {
-      _tarifPerKubik = (snapshot.value as int?) ?? 7000;
-    });
+  @override
+  void dispose() {
+    _standBaruController.dispose();
+    super.dispose();
   }
 
-  void _hitungTagihan() {
-    final standAwal = int.parse(widget.pelanggan['stand_baru']?.toString() ?? '0');
+  Future<int> _hitungTagihanBertingkat(int pemakaian, String jenisTarif) async {
+    try {
+      final snapshot = await FirebaseDatabase.instance.ref('tarif/$jenisTarif').get();
+      if (!snapshot.exists) return pemakaian * 9000;
+      
+      final tarif = Map<String, dynamic>.from(snapshot.value as Map);
+      int total = 0;
+      int sisa = pemakaian;
+      
+      for (var i = 1; i <= 3; i++) {
+        final golongan = tarif['golongan$i'];
+        if (golongan == null) break;
+        
+        final min = _toInt(golongan['min']);
+        final max = _toInt(golongan['max']);
+        final harga = _toInt(golongan['harga']);
+        
+        if (sisa <= 0) break;
+        
+        final range = max - min;
+        final volume = sisa > range ? range : sisa;
+        total += volume * harga;
+        sisa -= volume;
+      }
+      
+      return total;
+    } catch (e) {
+      print('Error calculating tariff: $e');
+      return pemakaian * 9000;
+    }
+  }
+
+  Future<void> _hitungKubikasi() async {
+    final standAwal = _toInt(widget.pelanggan['stand_baru'] ?? widget.pelanggan['stand_awal']);
     final standBaru = int.tryParse(_standBaruController.text) ?? standAwal;
+    final pemakaian = standBaru - standAwal;
+    final jenisTarif = _getJenisTarif();
+    
+    final tagihan = await _hitungTagihanBertingkat(pemakaian, jenisTarif);
+
     setState(() {
-      _kubikasi = standBaru - standAwal;
-      _tagihan = _kubikasi * _tarifPerKubik;
+      _kubikasi = pemakaian;
+      _tagihan = tagihan;
     });
   }
 
-  Future<void> _simpanData() async {
-    if (_kubikasi <= 0) return;
-    
+  Future<void> _simpan() async {
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
-    final now = DateTime.now();
+
+    final standAwal = _toInt(widget.pelanggan['stand_baru'] ?? widget.pelanggan['stand_awal']);
+    final standBaru = int.tryParse(_standBaruController.text) ?? 0;
+    final timestamp = DateTime.now();
 
     try {
-      await FirebaseDatabase.instance.ref('pelanggan/${widget.pelanggan['id']}').update({
-        'stand_awal': widget.pelanggan['stand_baru'],
-        'stand_baru': int.parse(_standBaruController.text),
-        'kubikasi': _kubikasi,
-        'tagihan': _tagihan,
-        'tanggal_catat': now.toIso8601String(),
-      });
+      // Update customer data
+      await FirebaseDatabase.instance
+          .ref('pelanggan/${widget.pelanggan['id']}')
+          .update({
+            'stand_awal': standAwal,
+            'stand_baru': standBaru,
+            'kubikasi': _kubikasi,
+            'tagihan': _tagihan,
+            'tanggal_catat': timestamp.toIso8601String(),
+          });
 
-      await FirebaseDatabase.instance.ref('histori/${widget.pelanggan['id']}/${now.millisecondsSinceEpoch}').set({
-        'tanggal': now.toIso8601String(),
-        'stand_awal': widget.pelanggan['stand_baru'],
-        'stand_baru': int.parse(_standBaruController.text),
-        'kubikasi': _kubikasi,
-        'tagihan': _tagihan,
-        'tarif': _tarifPerKubik,
-      });
+      // Add to history
+      await FirebaseDatabase.instance
+          .ref('histori/${widget.pelanggan['id']}_${timestamp.millisecondsSinceEpoch}')
+          .set({
+            'tanggal': timestamp.toIso8601String(),
+            'stand_awal': standAwal,
+            'stand_baru': standBaru,
+            'kubikasi': _kubikasi,
+            'tagihan': _tagihan,
+            'pelanggan_id': widget.pelanggan['id'],
+            'tarif': _getJenisTarif(),
+          });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Data berhasil disimpan!')),
-      );
+      Navigator.pop(context, true);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: ${e.toString()}')),
       );
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -81,56 +128,85 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Input Stand Baru')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Text(widget.pelanggan['nama'], style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            Text('ID: ${widget.pelanggan['id']}'),
-            Text('Tarif: ${widget.pelanggan['tarif']} (Rp $_tarifPerKubik/m³)'),
-            
-            SizedBox(height: 16),
-            TextFormField(
-              decoration: InputDecoration(labelText: 'Stand Lama'),
-              controller: TextEditingController(
-                text: widget.pelanggan['stand_baru']?.toString() ?? '0'),
-              enabled: false,
-            ),
-            
-            TextFormField(
-              decoration: InputDecoration(labelText: 'Stand Baru'),
-              controller: _standBaruController,
-              keyboardType: TextInputType.number,
-              onChanged: (value) => _hitungTagihan(),
-            ),
-            
-            SizedBox(height: 20),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
+      body: _loading
+          ? Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: ListView(
                   children: [
-                    _buildDetailRow('Pemakaian', '$_kubikasi m³'),
-                    _buildDetailRow('Tarif', 'Rp $_tarifPerKubik/m³'),
-                    Divider(),
-                    _buildDetailRow('Total Tagihan', 'Rp $_tagihan', isBold: true),
+                    Text(
+                      widget.pelanggan['nama'] ?? '',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 8),
+                    Text("ID: ${widget.pelanggan['id']}"),
+                    Text("Tarif: ${_getJenisTarif()}"),
+                    SizedBox(height: 16),
+                    
+                    TextFormField(
+                      initialValue: _toInt(widget.pelanggan['stand_baru'] ?? widget.pelanggan['stand_awal']).toString(),
+                      decoration: InputDecoration(labelText: 'Stand Lama'),
+                      enabled: false,
+                    ),
+                    
+                    TextFormField(
+                      controller: _standBaruController,
+                      decoration: InputDecoration(labelText: 'Stand Baru'),
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) => _hitungKubikasi(),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Harus diisi';
+                        final newValue = int.tryParse(value);
+                        if (newValue == null) return 'Harus angka';
+                        if (newValue <= _toInt(widget.pelanggan['stand_baru'] ?? widget.pelanggan['stand_awal'])) {
+                          return 'Stand baru harus lebih besar';
+                        }
+                        return null;
+                      },
+                    ),
+                    
+                    SizedBox(height: 24),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('RINCIAN TAGIHAN', style: TextStyle(fontWeight: FontWeight.bold)),
+                            Divider(),
+                            _buildDetailRow('Pemakaian', '$_kubikasi m³'),
+                            _buildDetailRow('Tarif', _getTarifText(_getJenisTarif())),
+                            Divider(),
+                            _buildDetailRow('Total Tagihan', 'Rp $_tagihan', isBold: true),
+                          ],
+                        ),
+                      ),
+                    ),
+                    
+                    SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: _simpan,
+                      child: Text('Simpan'),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: Size(double.infinity, 50),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
-            
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _simpanData,
-              child: _loading 
-                  ? CircularProgressIndicator(color: Colors.white)
-                  : Text('Simpan Data'),
-            ),
-          ],
-        ),
-      ),
     );
+  }
+
+  String _getTarifText(String jenisTarif) {
+    switch (jenisTarif) {
+      case 'P1': return 'Rp 8.000-15.000/m³ (Tiered)';
+      case 'R1': return 'Rp 5.000-9.000/m³ (Tiered)';
+      case 'S1': return 'Rp 6.000-11.000/m³ (Tiered)';
+      default: return 'Rp 9.000/m³ (Default)';
+    }
   }
 
   Widget _buildDetailRow(String label, String value, {bool isBold = false}) {
@@ -140,7 +216,10 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label),
-          Text(value, style: isBold ? TextStyle(fontWeight: FontWeight.bold) : null),
+          Text(
+            value,
+            style: isBold ? TextStyle(fontWeight: FontWeight.bold) : null,
+          ),
         ],
       ),
     );
