@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'pelanggan_screen.dart';
 import 'pencatatan_screen.dart';
-import 'laporan_keuangan_screen.dart';
+import 'keuangan_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -14,13 +14,13 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Widget> _screens = [
     PelangganScreen(),
     PencatatanScreen(),
-    LaporanKeuanganScreen(), // 🟡 Nanti ganti dengan Laporan Keuangan
+    KeuanganScreen(), // 🟡 Nanti ganti dengan Laporan Keuangan
   ];
 
   final List<String> _titles = [
     'Pelanggan',
     'Pencatatan Meteran',
-    'Laporan Keuangan'
+    'Keuangan'
   ];
 
   @override
