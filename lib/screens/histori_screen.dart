@@ -22,18 +22,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Future<void> _loadHistory() async {
     setState(() => _loading = true);
     try {
-      final snapshot = await FirebaseDatabase.instance
-          .ref('histori/${widget.pelangganId}')
-          .get();
+      final snapshot = await FirebaseDatabase.instance.ref('pembayaran').get();
 
       if (snapshot.exists) {
         final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
+        // Filter hanya histori dengan pelangganId sesuai
         historyList = data.values
             .map((e) => Map<dynamic, dynamic>.from(e))
+            .where((item) =>
+                item['pelanggan_id']?.toString() == widget.pelangganId)
             .toList();
         // Urutkan berdasarkan tanggal terbaru
         historyList.sort((a, b) =>
-            (b['tanggal_catat'] ?? '').compareTo(a['tanggal_catat'] ?? ''));
+            (b['tanggal'] ?? '').compareTo(a['tanggal'] ?? ''));
       } else {
         historyList = [];
       }
@@ -61,7 +62,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       margin: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
                       child: ListTile(
                         title: Text(
-                          'Tanggal: ${_formatTanggal(item['tanggal_catat'])}',
+                          'Tanggal: ${_formatTanggal(item['tanggal'])}',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Column(
