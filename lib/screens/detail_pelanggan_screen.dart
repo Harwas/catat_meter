@@ -81,7 +81,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
         SizedBox(height: 8),
         _buildInfoRow('ID Pelanggan', data!['id']),
         _buildInfoRow('Kategori', data!['cater']),
-        _buildInfoRow('Jenis Tarif', data!['tarif_cater']?.toString().split('_').first ?? '-'),
+        _buildInfoRow('Jenis Tarif', data!['tarif']?.toString().split('_').first ?? '-'),
         _buildInfoRow('Alamat', data!['alamat']),
         _buildInfoRow('No. Telpon', data!['no_telpon']),
         _buildInfoRow('Tanggal Sambung', data!['tanggal_sambung']),
@@ -175,7 +175,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => HistoriScreen(pelangganId: widget.pelangganId),
+        builder: (context) => HistoryScreen(pelangganId: widget.pelangganId),
       ),
     );
   }

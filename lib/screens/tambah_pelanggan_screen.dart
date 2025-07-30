@@ -60,22 +60,14 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
 
     final pelanggan = {
       'id': id,
-      'tarif_cater': "${selectedTarif!}_${selectedCater!}",
       'nama': namaController.text,
+      'tarif' : "${selectedTarif!}",
       'qr_code_url': "",
       'cater': selectedCater!,
       'alamat': alamatController.text,
       'no_telpon': int.tryParse(noTelponController.text) ?? 0,
       'koordinat': koordinatController.text,
       'tanggal_sambung': tanggalSambung?.toIso8601String() ?? "",
-      // Data awal pelanggan baru
-      'tanggal_catat': "",
-      'stand_awal': 0,
-      'stand_baru': 0,
-      'kubikasi': 0,
-      'tagihan': 0,
-      'dibayar': 0,
-      'terhutang': 0,
     };
 
     await FirebaseDatabase.instance.ref('pelanggan/$id').set(pelanggan);

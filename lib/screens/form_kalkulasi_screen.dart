@@ -20,7 +20,7 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
   int _toInt(dynamic value) => int.tryParse(value?.toString() ?? '0') ?? 0;
 
   String _getJenisTarif() {
-    return widget.pelanggan['tarif_cater']?.toString().split('_').first ?? 'P1';
+    return widget.pelanggan['tarif']?.toString().split('_').first ?? 'P1';
   }
 
   int _getHargaPerKubik(String jenisTarif) {

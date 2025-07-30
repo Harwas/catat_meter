@@ -25,6 +25,7 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _pembayaranController = TextEditingController();
   int? _sisa;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -43,47 +44,81 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
 
   Future<void> _simpanPembayaran() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    setState(() {
+      _isLoading = true;
+    });
+
     final pembayaran = int.tryParse(_pembayaranController.text) ?? 0;
     int terhutangBaru = widget.totalTagihan - pembayaran;
     if (terhutangBaru < 0) terhutangBaru = 0;
 
     try {
+      // Validasi stand meter
+      if (widget.standBaru < widget.standAwal) {
+        throw Exception('Stand baru tidak boleh kurang dari stand awal');
+      }
+
+      // Ambil data pelanggan terlebih dahulu
+      final snapshot = await FirebaseDatabase.instance
+          .ref('pelanggan/${widget.pelangganId}')
+          .once();
+
+      final data = snapshot.snapshot.value as Map<dynamic, dynamic>;
+      final bool isFirstTime = data['stand_awal'] == null;
+
       // Simpan histori pembayaran
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
       await FirebaseDatabase.instance
-          .ref('pembayaran/${widget.pelangganId}_${DateTime.now().millisecondsSinceEpoch}')
+          .ref('pembayaran/${widget.pelangganId}_$timestamp')
           .set({
         'pelanggan_id': widget.pelangganId,
         'pembayaran': pembayaran,
         'tanggal': DateTime.now().toIso8601String(),
         'total_tagihan': widget.totalTagihan,
         'terhutang': terhutangBaru,
+        'stand_awal': isFirstTime ? 0 : data['stand_awal'],
+        'stand_baru': widget.standBaru,
       });
 
-      // Update pelanggan: stand_awal di-overwrite oleh stand_baru, terhutang, tanggal_catat
+      // Update data pelanggan
       await FirebaseDatabase.instance
           .ref('pelanggan/${widget.pelangganId}')
           .update({
-        'stand_awal': widget.standBaru, // overwrite
+        'stand_awal': isFirstTime ? 0 : data['stand_awal'],
         'stand_baru': widget.standBaru,
+        'kubikasi': widget.standBaru - widget.standAwal,
         'terhutang': terhutangBaru,
         'tanggal_catat': widget.tanggalCatat,
+        'terakhir_update': ServerValue.timestamp,
       });
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Pembayaran berhasil disimpan!')),
+        const SnackBar(content: Text('Pembayaran berhasil disimpan!')),
       );
-      Navigator.popUntil(context, (route) => route.isFirst); // Kembali ke root
+      Navigator.popUntil(context, (route) => route.isFirst);
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: ${e.toString()}')),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Form Pembayaran')),
+      appBar: AppBar(
+        title: const Text('Form Pembayaran'),
+        elevation: 0,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -91,15 +126,86 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Total Tagihan: Rp ${widget.totalTagihan}', style: TextStyle(fontSize: 18)),
-              SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Informasi Meteran',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Stand Awal:'),
+                          Text(widget.standAwal.toString()),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Stand Baru:'),
+                          Text(widget.standBaru.toString()),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Pemakaian:'),
+                          Text('${widget.standBaru - widget.standAwal}'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Informasi Tagihan',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Total Tagihan:'),
+                          Text(
+                            'Rp ${widget.totalTagihan}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
               TextFormField(
                 controller: _pembayaranController,
                 keyboardType: TextInputType.number,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Nominal Pembayaran',
                   border: OutlineInputBorder(),
                   prefixText: 'Rp ',
+                  suffixIcon: Icon(Icons.attach_money),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -119,15 +225,49 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
                 },
                 onChanged: (_) => _hitungSisa(),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               if (_sisa != null)
-                Text('Sisa Tagihan (Terhutang): Rp ${_sisa!}', style: TextStyle(fontSize: 16)),
-              Spacer(),
+                Card(
+                  color: _sisa! > 0 ? Colors.orange[50] : Colors.green[50],
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _sisa! > 0 ? 'Sisa Tagihan:' : 'Lunas:',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Rp $_sisa',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _sisa! > 0 ? Colors.orange[800] : Colors.green[800],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              const Spacer(),
               SizedBox(
                 width: double.infinity,
+                height: 50,
                 child: ElevatedButton(
-                  onPressed: _simpanPembayaran,
-                  child: Text('Simpan Pembayaran'),
+                  onPressed: _isLoading ? null : _simpanPembayaran,
+                  style: ElevatedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(
+                          color: Colors.white,
+                        )
+                      : const Text(
+                          'SIMPAN PEMBAYARAN',
+                          style: TextStyle(fontSize: 16),
+                        ),
                 ),
               ),
             ],

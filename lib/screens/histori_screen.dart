@@ -1,100 +1,83 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:intl/intl.dart';
 
-class HistoriScreen extends StatefulWidget {
+class HistoryScreen extends StatefulWidget {
   final String pelangganId;
-  
-  const HistoriScreen({required this.pelangganId, Key? key}) : super(key: key);
+  const HistoryScreen({required this.pelangganId, Key? key}) : super(key: key);
 
   @override
-  State<HistoriScreen> createState() => _HistoriScreenState();
+  State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoriScreenState extends State<HistoriScreen> {
+class _HistoryScreenState extends State<HistoryScreen> {
+  List<Map<dynamic, dynamic>> historyList = [];
   bool _loading = true;
-  List<Map<dynamic, dynamic>> _historiData = [];
 
   @override
   void initState() {
     super.initState();
-    _loadHistori();
+    _loadHistory();
   }
 
-  Future<void> _loadHistori() async {
+  Future<void> _loadHistory() async {
+    setState(() => _loading = true);
     try {
       final snapshot = await FirebaseDatabase.instance
-          .ref('histori')
-          .orderByChild('tanggal')
-          .once();
+          .ref('histori/${widget.pelangganId}')
+          .get();
 
-      if (snapshot.snapshot.exists) {
-        final allData = Map<dynamic, dynamic>.from(snapshot.snapshot.value as Map);
-        
-        setState(() {
-          _historiData = allData.entries
-              .where((entry) => entry.key.toString().contains(widget.pelangganId))
-              .map((entry) => Map<dynamic, dynamic>.from(entry.value))
-              .toList()
-            ..sort((a, b) => b['tanggal'].compareTo(a['tanggal']));
-          _loading = false;
-        });
+      if (snapshot.exists) {
+        final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
+        historyList = data.values
+            .map((e) => Map<dynamic, dynamic>.from(e))
+            .toList();
+        // Urutkan berdasarkan tanggal terbaru
+        historyList.sort((a, b) =>
+            (b['tanggal_catat'] ?? '').compareTo(a['tanggal_catat'] ?? ''));
       } else {
-        setState(() {
-          _historiData = [];
-          _loading = false;
-        });
+        historyList = [];
       }
     } catch (e) {
-      setState(() {
-        _historiData = [];
-        _loading = false;
-      });
-      print('Error loading history: $e');
+      historyList = [];
     }
+    setState(() => _loading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Histori Pencatatan')),
+      appBar: AppBar(title: Text('Histori Pencatatan & Pembayaran')),
       body: _loading
           ? Center(child: CircularProgressIndicator())
-          : _historiData.isEmpty
+          : historyList.isEmpty
               ? Center(child: Text('Belum ada histori pencatatan'))
               : ListView.builder(
-                  padding: EdgeInsets.all(16),
-                  itemCount: _historiData.length,
-                  itemBuilder: (context, index) {
-                    final record = _historiData[index];
-                    final date = DateTime.parse(record['tanggal']);
-                    final formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(date);
-                    
+                  padding: EdgeInsets.all(8),
+                  itemCount: historyList.length,
+                  itemBuilder: (context, i) {
+                    final item = historyList[i];
+                    final kubikasi = (item['stand_baru'] ?? 0) - (item['stand_awal'] ?? 0);
                     return Card(
-                      margin: EdgeInsets.only(bottom: 16),
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Column(
+                      margin: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                      child: ListTile(
+                        title: Text(
+                          'Tanggal: ${_formatTanggal(item['tanggal_catat'])}',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Text('Stand Awal: ${item['stand_awal'] ?? "-"}'),
+                            Text('Stand Baru: ${item['stand_baru'] ?? "-"}'),
+                            Text('Kubikasi: $kubikasi m³'),
+                            Text('Total Tagihan: Rp ${item['total_tagihan'] ?? "0"}'),
+                            Text('Nominal Dibayar: Rp ${item['pembayaran'] ?? "0"}'),
                             Text(
-                              formattedDate,
+                              'Hutang: Rp ${item['terhutang'] ?? "0"}',
                               style: TextStyle(
+                                color: (item['terhutang'] ?? 0) > 0 ? Colors.red : Colors.green,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
                               ),
-                            ),
-                            SizedBox(height: 8),
-                            Divider(),
-                            _buildHistoriRow('Stand Awal', '${record['stand_awal']} m³'),
-                            _buildHistoriRow('Stand Baru', '${record['stand_baru']} m³'),
-                            _buildHistoriRow('Pemakaian', '${record['kubikasi']} m³'),
-                            _buildHistoriRow('Tarif', 'Rp ${record['harga_per_m3']}/m³'),
-                            Divider(),
-                            _buildHistoriRow(
-                              'Total Tagihan',
-                              'Rp ${record['tagihan']}',
-                              isBold: true,
                             ),
                           ],
                         ),
@@ -105,19 +88,12 @@ class _HistoriScreenState extends State<HistoriScreen> {
     );
   }
 
-  Widget _buildHistoriRow(String label, String value, {bool isBold = false}) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label),
-          Text(
-            value,
-            style: isBold ? TextStyle(fontWeight: FontWeight.bold) : null,
-          ),
-        ],
-      ),
-    );
+  String _formatTanggal(dynamic isoString) {
+    try {
+      final date = DateTime.parse(isoString);
+      return "${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute}";
+    } catch (e) {
+      return isoString?.toString() ?? '-';
+    }
   }
 }
