@@ -59,14 +59,6 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
         throw Exception('Stand baru tidak boleh kurang dari stand awal');
       }
 
-      // Ambil data pelanggan terlebih dahulu
-      final snapshot = await FirebaseDatabase.instance
-          .ref('pelanggan/${widget.pelangganId}')
-          .once();
-
-      final data = snapshot.snapshot.value as Map<dynamic, dynamic>;
-      final bool isFirstTime = data['stand_awal'] == null;
-
       // Simpan histori pembayaran
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       await FirebaseDatabase.instance
@@ -77,7 +69,7 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
         'tanggal': DateTime.now().toIso8601String(),
         'total_tagihan': widget.totalTagihan,
         'terhutang': terhutangBaru,
-        'stand_awal': isFirstTime ? 0 : data['stand_awal'],
+        'stand_awal': widget.standAwal,
         'stand_baru': widget.standBaru,
       });
 
@@ -85,7 +77,7 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
       await FirebaseDatabase.instance
           .ref('pelanggan/${widget.pelangganId}')
           .update({
-        'stand_awal': isFirstTime ? 0 : data['stand_awal'],
+        'stand_awal': widget.standAwal,
         'stand_baru': widget.standBaru,
         'kubikasi': widget.standBaru - widget.standAwal,
         'terhutang': terhutangBaru,
