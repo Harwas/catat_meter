@@ -78,7 +78,7 @@ class _PencatatanScreenState extends State<PencatatanScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('ID: ${pelanggan['id']}'),
-                              Text('Tarif: ${pelanggan['tarif']?.toString().split('_').first ?? '-'}'),
+                              Text('Tarif: ${pelanggan['tarif_nama']?.toString().split('_').first ?? '-'}'),
                             ],
                           ),
                           trailing: Icon(Icons.arrow_forward_ios, size: 16),

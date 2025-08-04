@@ -10,70 +10,160 @@ class TambahPelangganScreen extends StatefulWidget {
 
 class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
   final _formKey = GlobalKey<FormState>();
-  final namaController = TextEditingController();
-  final alamatController = TextEditingController();
-  final noTelponController = TextEditingController();
-  final koordinatController = TextEditingController();
-  DateTime? tanggalSambung;
+  final TextEditingController _namaController = TextEditingController();
+  final TextEditingController _alamatController = TextEditingController();
+  final TextEditingController _telponController = TextEditingController();
+  final TextEditingController _koordinatController = TextEditingController();
+  DateTime? _tanggalSambung;
 
-  // Dropdown options
-  final List<String> tarifList = ['R1', 'S1', 'P1'];
-  final List<String> caterList = ['Roy', 'Sari', 'Putra'];
-  String? selectedTarif;
-  String? selectedCater;
-
+  List<Map<String, dynamic>> _caterList = [];
+  List<Map<String, dynamic>> _tarifList = [];
+  String? _selectedCaterKode;
+  String? _selectedTarifKey;
   bool _loading = false;
 
-  Future<int> getNextUrut(String tarif, String cater) async {
-    String counterKey = "${tarif}_${cater}";
-    DatabaseReference counterRef = FirebaseDatabase.instance.ref('counter/$counterKey');
+  @override
+  void initState() {
+    super.initState();
+    _fetchCater();
+    _fetchTarif();
+  }
 
-    final snapshot = await counterRef.get();
-    int nomor = 1;
-    if (snapshot.exists) {
-      nomor = (snapshot.value as int) + 1;
+  void _fetchCater() {
+    FirebaseDatabase.instance.ref('cater').onValue.listen((event) {
+      final snap = event.snapshot.value;
+      if (snap != null) {
+        final data = Map<String, dynamic>.from(snap as Map);
+        setState(() {
+          _caterList = data.entries.map((e) {
+            final value = Map<String, dynamic>.from(e.value as Map);
+            // Ambil kode dan nama cater dari database
+            value['key'] = e.key as String;
+            value['kode'] = value['kode'] ?? e.key as String;
+            value['nama'] = value['nama'] ?? '';
+            return value;
+          }).toList();
+        });
+      } else {
+        setState(() {
+          _caterList = [];
+        });
+      }
+    });
+  }
+
+  void _fetchTarif() {
+    FirebaseDatabase.instance.ref('tarif').onValue.listen((event) {
+      final snap = event.snapshot.value;
+      if (snap != null) {
+        final data = Map<String, dynamic>.from(snap as Map);
+        setState(() {
+          _tarifList = data.entries.map((e) {
+            final value = Map<String, dynamic>.from(e.value as Map);
+            // Ambil key (Firebase key) dan nama (misal: "R2") dari database
+            value['key'] = e.key as String;
+            value['nama'] = value['nama'] ?? '';
+            return value;
+          }).toList();
+        });
+      } else {
+        setState(() {
+          _tarifList = [];
+        });
+      }
+    });
+  }
+
+  Future<String> _generatePelangganId(String caterKode, String tarifNama) async {
+    // Contoh: [tarifNama][4digit][caterKode] => R20001D
+    final ref = FirebaseDatabase.instance.ref('pelanggan');
+    final snapshot = await ref.get();
+    int maxUrut = 0;
+    if (snapshot.value != null) {
+      final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
+      for (final p in data.values) {
+        final pelanggan = Map<dynamic, dynamic>.from(p);
+        // Cari ID yang cocok formatnya: [tarifNama][4digit][caterKode]
+        if (pelanggan['id'] != null &&
+            pelanggan['id'] is String &&
+            (pelanggan['id'] as String).startsWith(tarifNama) &&
+            (pelanggan['id'] as String).endsWith(caterKode)) {
+          final id = pelanggan['id'] as String;
+          final numberPart = id.substring(tarifNama.length, id.length - caterKode.length);
+          final urut = int.tryParse(numberPart) ?? 0;
+          if (urut > maxUrut) maxUrut = urut;
+        }
+      }
     }
-    await counterRef.set(nomor); // update counter
-    return nomor;
+    final nextUrut = (maxUrut + 1).toString().padLeft(4, '0');
+    return "$tarifNama$nextUrut$caterKode";
   }
 
-  String generateId(String tarif, String cater, int nomorUrut) {
-    // Akhiran ID berdasarkan cater
-    String kodeAkhir = cater.toLowerCase() == "roy"
-        ? "A"
-        : cater.toLowerCase() == "sari"
-            ? "B"
-            : cater.toLowerCase() == "putra"
-                ? "C"
-                : "X";
-    // Format: R1001A (tanpa angka 1 ganda)
-    return "${tarif.toUpperCase()}${nomorUrut.toString().padLeft(3, '0')}$kodeAkhir";
-  }
-
-  void _simpanPelanggan() async {
-    if (!_formKey.currentState!.validate() || selectedTarif == null || selectedCater == null) return;
+  Future<void> _simpanPelanggan() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedCaterKode == null || _selectedTarifKey == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cater dan tarif wajib dipilih')),
+      );
+      return;
+    }
+    if (_tanggalSambung == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tanggal sambung wajib dipilih')),
+      );
+      return;
+    }
     setState(() => _loading = true);
 
-    // Menggunakan counter, bukan scan semua data pelanggan
-    final nomorUrut = await getNextUrut(selectedTarif!, selectedCater!);
-    final id = generateId(selectedTarif!, selectedCater!, nomorUrut);
+    try {
+      final nama = _namaController.text.trim();
+      final selectedCater = _caterList.firstWhere((c) => c['kode'] == _selectedCaterKode);
+      final selectedTarif = _tarifList.firstWhere((t) => t['key'] == _selectedTarifKey);
 
-    final pelanggan = {
-      'id': id,
-      'nama': namaController.text,
-      'tarif' : "${selectedTarif!}",
-      'qr_code_url': "",
-      'cater': selectedCater!,
-      'alamat': alamatController.text,
-      'no_telpon': int.tryParse(noTelponController.text) ?? 0,
-      'koordinat': koordinatController.text,
-      'tanggal_sambung': tanggalSambung?.toIso8601String() ?? "",
-    };
+      // Gunakan nama tarif (bukan key Firebase) dan kode cater dari database
+      final id = await _generatePelangganId(selectedCater['kode'], selectedTarif['nama']);
+      await FirebaseDatabase.instance.ref('pelanggan/$id').set({
+        'id': id,
+        'nama': nama,
+        'alamat': _alamatController.text.trim(),
+        'telpon': _telponController.text.trim(),
+        'tanggal_sambung': _tanggalSambung?.toIso8601String(),
+        'koordinat': _koordinatController.text.trim(),
+        'cater_kode': selectedCater['kode'],
+        'cater_nama': selectedCater['nama'],
+        'tarif_key': selectedTarif['key'],
+        'tarif_nama': selectedTarif['nama'],
+        'harga_per_m3': selectedTarif['harga'],
+        'stand_awal': 0,
+        'stand_baru': 0,
+        'kubikasi': 0,
+        'terhutang': 0,
+        'tanggal_catat': DateTime.now().toIso8601String(),
+      });
 
-    await FirebaseDatabase.instance.ref('pelanggan/$id').set(pelanggan);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pelanggan berhasil ditambahkan!')),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyimpan pelanggan: $e')),
+      );
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
 
-    setState(() => _loading = false);
-    Navigator.pop(context, pelanggan);
+  Future<void> _pickTanggalSambung(BuildContext context) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _tanggalSambung ?? now,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(now.year + 3),
+    );
+    if (picked != null) setState(() => _tanggalSambung = picked);
   }
 
   @override
@@ -86,86 +176,119 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
           key: _formKey,
           child: ListView(
             children: [
-              DropdownButtonFormField<String>(
-                value: selectedTarif,
-                items: tarifList.map((tarif) {
-                  return DropdownMenuItem(
-                    value: tarif,
-                    child: Text(tarif),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedTarif = value;
-                  });
-                },
-                decoration: InputDecoration(labelText: 'Tarif'),
-                validator: (v) => v == null ? 'Wajib pilih tarif' : null,
-              ),
-              DropdownButtonFormField<String>(
-                value: selectedCater,
-                items: caterList.map((cater) {
-                  return DropdownMenuItem(
-                    value: cater,
-                    child: Text(cater),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedCater = value;
-                  });
-                },
-                decoration: InputDecoration(labelText: 'Cater'),
-                validator: (v) => v == null ? 'Wajib pilih cater' : null,
-              ),
-              TextFormField(
-                controller: namaController,
-                decoration: InputDecoration(labelText: 'Nama Pelanggan'),
-                validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
-              ),
-              TextFormField(
-                controller: alamatController,
-                decoration: InputDecoration(labelText: 'Alamat'),
-              ),
-              TextFormField(
-                controller: noTelponController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: 'No. Telpon'),
-              ),
-              TextFormField(
-                controller: koordinatController,
-                decoration: InputDecoration(labelText: 'Koordinat'),
-              ),
-              const SizedBox(height: 8),
-              Text('Tanggal Sambung', style: TextStyle(fontWeight: FontWeight.bold)),
-              InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: tanggalSambung ?? DateTime.now(),
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime(2100),
-                  );
-                  if (picked != null) {
-                    setState(() => tanggalSambung = picked);
-                  }
-                },
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Text(
-                    tanggalSambung == null
-                        ? 'Pilih tanggal'
-                        : "${tanggalSambung!.day}-${tanggalSambung!.month}-${tanggalSambung!.year}",
-                    style: TextStyle(fontSize: 16),
+              if (_selectedCaterKode != null && _selectedTarifKey != null)
+                FutureBuilder<String>(
+                  future: () {
+                    final selectedCater = _caterList.firstWhere(
+                        (c) => c['kode'] == _selectedCaterKode,
+                        orElse: () => {});
+                    final selectedTarif = _tarifList.firstWhere(
+                        (t) => t['key'] == _selectedTarifKey,
+                        orElse: () => {});
+                    if (selectedCater.isEmpty || selectedTarif.isEmpty) {
+                      return Future.value('-');
+                    }
+                    return _generatePelangganId(
+                        selectedCater['kode'], selectedTarif['nama']);
+                  }(),
+                  builder: (context, snapshot) => Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'ID Pelanggan (Otomatis)',
+                        border: OutlineInputBorder(),
+                      ),
+                      child: Text(snapshot.data ?? '-'),
+                    ),
                   ),
                 ),
+              TextFormField(
+                controller: _namaController,
+                decoration: const InputDecoration(labelText: 'Nama Pelanggan'),
+                validator: (v) => v == null || v.isEmpty ? 'Nama wajib diisi' : null,
+              ),
+              TextFormField(
+                controller: _alamatController,
+                decoration: const InputDecoration(labelText: 'Alamat'),
+                validator: (v) => v == null || v.isEmpty ? 'Alamat wajib diisi' : null,
+              ),
+              TextFormField(
+                controller: _telponController,
+                decoration: const InputDecoration(labelText: 'No. Telpon'),
+                keyboardType: TextInputType.phone,
+                validator: (v) => v == null || v.isEmpty ? 'No telpon wajib diisi' : null,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _pickTanggalSambung(context),
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Tanggal Sambung',
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          _tanggalSambung != null
+                              ? "${_tanggalSambung!.day}/${_tanggalSambung!.month}/${_tanggalSambung!.year}"
+                              : 'Pilih tanggal',
+                          style: TextStyle(
+                            color: _tanggalSambung == null ? Colors.grey : Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _koordinatController,
+                decoration: const InputDecoration(labelText: 'Koordinat (lat,long)'),
+                validator: (v) => v == null || v.isEmpty ? 'Koordinat wajib diisi' : null,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedCaterKode,
+                items: _caterList.map((c) {
+                  final kode = c['kode'] as String;
+                  final nama = c['nama'] ?? '';
+                  return DropdownMenuItem<String>(
+                    value: kode,
+                    child: Text("$kode - $nama"),
+                  );
+                }).toList(),
+                onChanged: (v) => setState(() => _selectedCaterKode = v),
+                decoration: const InputDecoration(labelText: 'Cater'),
+                validator: (v) => v == null ? 'Cater wajib dipilih' : null,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedTarifKey,
+                items: _tarifList.map((t) {
+                  final key = t['key'] as String;
+                  final nama = t['nama'] ?? '';
+                  final harga = t['harga'] ?? '';
+                  return DropdownMenuItem<String>(
+                    value: key,
+                    child: Text("$nama (Rp $harga/m³)"),
+                  );
+                }).toList(),
+                onChanged: (v) => setState(() => _selectedTarifKey = v),
+                decoration: const InputDecoration(labelText: 'Tarif'),
+                validator: (v) => v == null ? 'Tarif wajib dipilih' : null,
               ),
               const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: _loading ? null : _simpanPelanggan,
-                icon: Icon(Icons.save),
-                label: Text(_loading ? 'Menyimpan...' : 'Simpan'),
-              ),
+              _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _simpanPelanggan,
+                        child: const Text('Simpan'),
+                      ),
+                    ),
             ],
           ),
         ),

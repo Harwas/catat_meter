@@ -89,7 +89,7 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
               Text(widget.pelanggan['nama'] ?? '', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               SizedBox(height: 8),
               Text("ID: ${widget.pelanggan['id']}"),
-              Text("Tarif: ${_getJenisTarif()}"),
+              Text("Tarif_nama: ${_getJenisTarif()}"),
               SizedBox(height: 16),
               TextFormField(
                 initialValue: _standAwal.toString(),
