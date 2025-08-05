@@ -12,12 +12,21 @@ class PelangganScreen extends StatefulWidget {
 
 class _PelangganScreenState extends State<PelangganScreen> {
   List<Map<dynamic, dynamic>> _pelangganList = [];
+  List<Map<dynamic, dynamic>> _filteredList = [];
   bool _loading = true;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _fetchPelanggan();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchPelanggan() async {
@@ -31,14 +40,31 @@ class _PelangganScreenState extends State<PelangganScreen> {
       if (value is Map) {
         value.forEach((key, data) {
           if (data is Map) {
-            list.add(Map<String, dynamic>.from(data));
+            final pelanggan = Map<String, dynamic>.from(data);
+            pelanggan['id'] = pelanggan['id'] ?? key; // pastikan id tetap ada
+            list.add(pelanggan);
           }
         });
       }
     }
     setState(() {
       _pelangganList = list;
+      _filteredList = list;
       _loading = false;
+    });
+  }
+
+  void _onSearchChanged() {
+    final query = _searchController.text.trim().toLowerCase();
+    setState(() {
+      _filteredList = query.isEmpty
+          ? _pelangganList
+          : _pelangganList.where((pelanggan) {
+              final nama = (pelanggan['nama'] ?? '').toString().toLowerCase();
+              final alamat = (pelanggan['alamat'] ?? '').toString().toLowerCase();
+              final id = (pelanggan['id'] ?? '').toString().toLowerCase();
+              return nama.contains(query) || alamat.contains(query) || id.contains(query);
+            }).toList();
     });
   }
 
@@ -83,70 +109,88 @@ class _PelangganScreenState extends State<PelangganScreen> {
       ),
       body: _loading
           ? Center(child: CircularProgressIndicator())
-          : _pelangganList.isEmpty
-              ? Center(child: Text('Belum ada data pelanggan.'))
-              : ListView.builder(
-                  itemCount: _pelangganList.length,
-                  itemBuilder: (context, index) {
-                    final pelanggan = _pelangganList[index];
-                    return GestureDetector(
-                      onTap: () => _navigateToDetailPelanggan(pelanggan['id']),
-                      child: Card(
-                        margin: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                          side: BorderSide(color: Colors.blue.shade300, width: 1.5),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: Colors.yellow[200],
-                                child: Icon(Icons.person, color: Colors.blue[800]),
-                                radius: 28,
-                              ),
-                              SizedBox(width: 15),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      pelanggan['nama'] ?? '-',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.blue[800],
-                                        fontSize: 18,
-                                      ),
-                                    ),
-                                    SizedBox(height: 3),
-                                    Text(
-                                      'PADUKUHAN : ${pelanggan['alamat'] ?? '-'}',
-                                      style: TextStyle(fontSize: 14),
-                                    ),
-                                    Text(
-                                      'TANGGAL : ${pelanggan['tanggal_sambung'] != null && pelanggan['tanggal_sambung'] != "" ? pelanggan['tanggal_sambung'].toString().split('T').first : ""}',
-                                      style: TextStyle(fontSize: 14),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                pelanggan['id'] ?? '',
-                                style: TextStyle(
-                                  color: Colors.blue[700],
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      labelText: 'Cari Pelanggan (nama, alamat, id)',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                    ),
+                    style: const TextStyle(fontSize: 18),
+                  ),
                 ),
+                Expanded(
+                  child: _filteredList.isEmpty
+                      ? Center(child: Text('Belum ada data pelanggan.'))
+                      : ListView.builder(
+                          itemCount: _filteredList.length,
+                          itemBuilder: (context, index) {
+                            final pelanggan = _filteredList[index];
+                            return GestureDetector(
+                              onTap: () => _navigateToDetailPelanggan(pelanggan['id']),
+                              child: Card(
+                                margin: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                  side: BorderSide(color: Colors.blue.shade300, width: 1.5),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(10),
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        backgroundColor: Colors.yellow[200],
+                                        child: Icon(Icons.person, color: Colors.blue[800]),
+                                        radius: 28,
+                                      ),
+                                      SizedBox(width: 15),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              pelanggan['nama'] ?? '-',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.blue[800],
+                                                fontSize: 18,
+                                              ),
+                                            ),
+                                            SizedBox(height: 3),
+                                            Text(
+                                              'PADUKUHAN : ${pelanggan['alamat'] ?? '-'}',
+                                              style: TextStyle(fontSize: 14),
+                                            ),
+                                            Text(
+                                              'TANGGAL : ${pelanggan['tanggal_sambung'] != null && pelanggan['tanggal_sambung'] != "" ? pelanggan['tanggal_sambung'].toString().split('T').first : ""}',
+                                              style: TextStyle(fontSize: 14),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        pelanggan['id'] ?? '',
+                                        style: TextStyle(
+                                          color: Colors.blue[700],
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
     );
   }
 }
