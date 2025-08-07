@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:excel/excel.dart';
+import 'package:path_provider/path_provider.dart';
 
 // Data model
 class KeuanganItem {
@@ -115,59 +118,62 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
         final _nominalController = TextEditingController();
         DateTime selectedDate = DateTime.now();
 
-        return AlertDialog(
-          title: Text('Tambah $kategori'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _judulController,
-                decoration: InputDecoration(labelText: 'Judul'),
+        return StatefulBuilder(
+          builder: (context, setStateDialog) => AlertDialog(
+            title: Text('Tambah $kategori'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: _judulController,
+                  decoration: InputDecoration(labelText: 'Judul'),
+                ),
+                TextField(
+                  controller: _nominalController,
+                  decoration: InputDecoration(labelText: 'Nominal'),
+                  keyboardType: TextInputType.number,
+                ),
+                SizedBox(height: 12),
+                Row(
+                  children: [
+                    Text("Tanggal: ${selectedDate.day}/${selectedDate.month}/${selectedDate.year}"),
+                    Spacer(),
+                    TextButton(
+                      child: Text('Pilih Tanggal'),
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked != null) {
+                          setStateDialog(() {
+                            selectedDate = picked;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                child: Text('Batal'),
+                onPressed: () => Navigator.pop(context),
               ),
-              TextField(
-                controller: _nominalController,
-                decoration: InputDecoration(labelText: 'Nominal'),
-                keyboardType: TextInputType.number,
-              ),
-              SizedBox(height: 12),
-              Row(
-                children: [
-                  Text("Tanggal: ${selectedDate.day}/${selectedDate.month}/${selectedDate.year}"),
-                  Spacer(),
-                  TextButton(
-                    child: Text('Pilih Tanggal'),
-                    onPressed: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: selectedDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2100),
-                      );
-                      if (picked != null) {
-                        selectedDate = picked;
-                        setState(() {});
-                      }
-                    },
-                  ),
-                ],
+              ElevatedButton(
+                child: Text('Simpan'),
+                onPressed: () {
+                  judul = _judulController.text;
+                  nominal = int.tryParse(_nominalController.text) ?? 0;
+                  tanggal = selectedDate;
+                  Navigator.pop(context);
+                },
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              child: Text('Batal'),
-              onPressed: () => Navigator.pop(context),
-            ),
-            ElevatedButton(
-              child: Text('Simpan'),
-              onPressed: () {
-                judul = _judulController.text;
-                nominal = int.tryParse(_nominalController.text) ?? 0;
-                tanggal = selectedDate;
-                Navigator.pop(context);
-              },
-            ),
-          ],
         );
       },
     );
@@ -184,10 +190,87 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
     }
   }
 
+  Future<void> _exportExcel() async {
+    var excel = Excel.createExcel();
+    // Pendapatan Sheet
+    Sheet pendSheet = excel['Pendapatan'];
+    pendSheet.appendRow(['ID', 'Nominal', 'Pelanggan ID', 'Tanggal']);
+    for (var item in pendapatan) {
+      pendSheet.appendRow([
+        item.id,
+        item.nominal,
+        item.pelangganId ?? '',
+        _formatTanggal(item.tanggal),
+      ]);
+    }
+
+    // Pemasukkan Sheet
+    Sheet masukSheet = excel['Pemasukkan'];
+    masukSheet.appendRow(['ID', 'Nominal', 'Judul', 'Tanggal']);
+    for (var item in pemasukkan) {
+      masukSheet.appendRow([
+        item.id,
+        item.nominal,
+        item.judul,
+        _formatTanggal(item.tanggal),
+      ]);
+    }
+
+    // Pengeluaran Sheet
+    Sheet keluarSheet = excel['Pengeluaran'];
+    keluarSheet.appendRow(['ID', 'Nominal', 'Judul', 'Tanggal']);
+    for (var item in pengeluaran) {
+      keluarSheet.appendRow([
+        item.id,
+        item.nominal,
+        item.judul,
+        _formatTanggal(item.tanggal),
+      ]);
+    }
+
+    // Simpan ke folder Documents umum di Android
+    String filePath;
+    try {
+      Directory? directory;
+      if (Platform.isAndroid) {
+        directory = Directory('/storage/emulated/0/Documents');
+        if (!directory.existsSync()) {
+          directory.createSync(recursive: true);
+        }
+      } else {
+        directory = await getApplicationDocumentsDirectory();
+      }
+      filePath = '${directory.path}/keuangan_export_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+      final file = File(filePath);
+      await file.writeAsBytes(excel.save()!);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('File Excel berhasil disimpan di: $filePath')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal export: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Keuangan')),
+      appBar: AppBar(
+        title: Text('Keuangan'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.file_download),
+            tooltip: 'Export ke Excel',
+            onPressed: _loading ? null : _exportExcel,
+          ),
+        ],
+      ),
       body: _loading
           ? Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
