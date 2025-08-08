@@ -66,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () => _onDrawerTap(const EditTarifScreen()),
             ),
             ListTile(
-              leading: const Icon(Icons.add_circle),
+              leading: const Icon(Icons.edit),
               title: const Text('Edit Cater'),
               onTap: () => _onDrawerTap(const EditCaterScreen()),
             ),

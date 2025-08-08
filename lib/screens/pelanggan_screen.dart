@@ -93,92 +93,169 @@ class _PelangganScreenState extends State<PelangganScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Daftar Pelanggan'),
+        backgroundColor: const Color(0xFF2196F3),
+        elevation: 0,
+        title: const Text(
+          'PELANGGAN',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            letterSpacing: 1.2,
+          ),
+        ),
+        centerTitle: true,
         actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _fetchPelanggan,
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: Colors.yellow,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.water_drop,
+              color: Color(0xFF2196F3),
+              size: 24,
+            ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _navigateToTambahPelanggan,
-        child: Icon(Icons.add),
+        backgroundColor: const Color(0xFF2196F3),
+        child: const Icon(Icons.add, color: Colors.white),
         tooltip: 'Tambah Pelanggan',
       ),
       body: _loading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      labelText: 'Cari Pelanggan (nama, alamat, id)',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(),
+                Container(
+                  color: const Color(0xFF2196F3),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(color: Colors.blue.shade200, width: 2),
                     ),
-                    style: const TextStyle(fontSize: 18),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: const InputDecoration(
+                        hintText: 'Cari Pelanggan (nama, alamat, id)',
+                        hintStyle: TextStyle(color: Colors.blue, fontSize: 16),
+                        prefixIcon: Icon(Icons.search, color: Colors.blue, size: 24),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                      ),
+                      style: const TextStyle(fontSize: 16),
+                    ),
                   ),
                 ),
                 Expanded(
                   child: _filteredList.isEmpty
-                      ? Center(child: Text('Belum ada data pelanggan.'))
+                      ? const Center(
+                          child: Text(
+                            'Belum ada data pelanggan.',
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                          ),
+                        )
                       : ListView.builder(
+                          padding: const EdgeInsets.all(16),
                           itemCount: _filteredList.length,
                           itemBuilder: (context, index) {
                             final pelanggan = _filteredList[index];
                             return GestureDetector(
                               onTap: () => _navigateToDetailPelanggan(pelanggan['id']),
-                              child: Card(
-                                margin: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                shape: RoundedRectangleBorder(
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(15),
-                                  side: BorderSide(color: Colors.blue.shade300, width: 1.5),
+                                  border: Border.all(color: Colors.blue.shade200, width: 2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.grey.withOpacity(0.1),
+                                      spreadRadius: 1,
+                                      blurRadius: 3,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
                                 child: Padding(
-                                  padding: const EdgeInsets.all(10),
+                                  padding: const EdgeInsets.all(16),
                                   child: Row(
                                     children: [
-                                      CircleAvatar(
-                                        backgroundColor: Colors.yellow[200],
-                                        child: Icon(Icons.person, color: Colors.blue[800]),
-                                        radius: 28,
+                                      Container(
+                                        width: 50,
+                                        height: 50,
+                                        decoration: BoxDecoration(
+                                          color: _getAvatarColor(index),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(25),
+                                          child: Image.asset(
+                                            _getAvatarImage(index),
+                                            width: 50,
+                                            height: 50,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return Icon(
+                                                Icons.person,
+                                                color: Colors.blue[800],
+                                                size: 30,
+                                              );
+                                            },
+                                          ),
+                                        ),
                                       ),
-                                      SizedBox(width: 15),
+                                      const SizedBox(width: 16),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              pelanggan['nama'] ?? '-',
-                                              style: TextStyle(
+                                              pelanggan['nama'] ?? 'NAMA PELANGGAN',
+                                              style: const TextStyle(
                                                 fontWeight: FontWeight.bold,
-                                                color: Colors.blue[800],
-                                                fontSize: 18,
+                                                color: Color(0xFF2196F3),
+                                                fontSize: 16,
                                               ),
                                             ),
-                                            SizedBox(height: 3),
+                                            const SizedBox(height: 8),
                                             Text(
-                                              'PADUKUHAN : ${pelanggan['alamat'] ?? '-'}',
-                                              style: TextStyle(fontSize: 14),
+                                              'Alamat : ${pelanggan['alamat'] ?? ''}',
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Color(0xFF2196F3),
+                                              ),
                                             ),
+                                            const SizedBox(height: 4),
                                             Text(
                                               'TANGGAL : ${pelanggan['tanggal_sambung'] != null && pelanggan['tanggal_sambung'] != "" ? pelanggan['tanggal_sambung'].toString().split('T').first : ""}',
-                                              style: TextStyle(fontSize: 14),
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Color(0xFF2196F3),
+                                              ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        pelanggan['id'] ?? '',
-                                        style: TextStyle(
-                                          color: Colors.blue[700],
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        child: Text(
+                                          pelanggan['id'] ?? '',
+                                          style: const TextStyle(
+                                            color: Color(0xFF2196F3),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -192,5 +269,27 @@ class _PelangganScreenState extends State<PelangganScreen> {
               ],
             ),
     );
+  }
+
+  Color _getAvatarColor(int index) {
+    final colors = [
+      Colors.yellow[200]!,
+      Colors.orange[200]!,
+      Colors.blue[200]!,
+      Colors.pink[200]!,
+    ];
+    return colors[index % colors.length];
+  }
+
+  String _getAvatarImage(int index) {
+    // Ini adalah placeholder untuk gambar avatar
+    // Anda bisa mengganti dengan path gambar yang sesuai atau menggunakan network image
+    final images = [
+      'assets/images/avatar1.png',
+      'assets/images/avatar2.png',
+      'assets/images/avatar3.png',
+      'assets/images/avatar4.png',
+    ];
+    return images[index % images.length];
   }
 }
