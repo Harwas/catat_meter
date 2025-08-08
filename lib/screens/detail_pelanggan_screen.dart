@@ -38,31 +38,48 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Detail Pelanggan'),
+        backgroundColor: const Color(0xFF2196F3),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'DETAIL PELANGGAN',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            letterSpacing: 1.0,
+          ),
+        ),
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(Icons.history),
+            icon: const Icon(Icons.history, color: Colors.white, size: 24),
             onPressed: () => _navigateToHistory(),
             tooltip: 'Lihat Histori',
           ),
         ],
       ),
       body: _loading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : data == null
-              ? Center(child: Text('Data pelanggan tidak ditemukan'))
+              ? const Center(
+                  child: Text(
+                    'Data pelanggan tidak ditemukan',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                )
               : SingleChildScrollView(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildInfoSection(),
-                      SizedBox(height: 24),
-                      _buildMeterSection(),
-                      SizedBox(height: 24),
-                      _buildPaymentSection(),
-                      SizedBox(height: 32),
+                      _buildMainInfoCard(),
+                      const SizedBox(height: 24),
                       _buildHistoryButton(),
                     ],
                   ),
@@ -70,41 +87,111 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
     );
   }
 
-  Widget _buildInfoSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          data!['nama'] ?? 'Nama tidak tersedia',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+  Widget _buildMainInfoCard() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFF2196F3), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 2,
+            blurRadius: 5,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with avatar and name
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.yellow[200],
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.person,
+                    color: Color(0xFF2196F3),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    data!['nama'] ?? 'Nama Pelanggan',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2196F3),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            // Basic info
+            _buildInfoRow('ID Pelanggan', data!['id'], isBlue: true),
+            _buildInfoRow('Kategori', data!['cater_nama'], isBlue: true),
+            _buildInfoRow('Jenis Tarif', data!['tarif_nama']?.toString().split('_').first ?? '-', isBlue: true),
+            _buildInfoRow('Alamat', data!['alamat'], isBlue: true),
+            _buildInfoRow('No Telepon', data!['telpon'], isBlue: true),
+            _buildInfoRow('Tanggal Sambung', _formatDate(data!['tanggal_sambung']), isBlue: true),
+            
+            const SizedBox(height: 20),
+            
+            // Data Meteran section
+            _buildMeterSection(),
+            
+            const SizedBox(height: 16),
+            
+            // Pembayaran section
+            _buildPaymentSection(),
+          ],
         ),
-        SizedBox(height: 8),
-        _buildInfoRow('ID Pelanggan', data!['id']),
-        _buildInfoRow('Kategori', data!['cater_nama']),
-        _buildInfoRow('Jenis Tarif', data!['tarif_nama']?.toString().split('_').first ?? '-'),
-        _buildInfoRow('Alamat', data!['alamat']),
-        _buildInfoRow('No. Telpon', data!['telpon']),
-        _buildInfoRow('Tanggal Sambung', data!['tanggal_sambung']),
-      ],
+      ),
     );
   }
 
   Widget _buildMeterSection() {
-    return Card(
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.yellow, width: 2),
+      ),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'Data Meteran',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2196F3),
+              ),
             ),
-            Divider(),
-            _buildInfoRow('Stand Awal', data!['stand_awal']),
-            _buildInfoRow('Stand Baru', data!['stand_baru']),
-            _buildInfoRow('Kubikasi', data!['kubikasi']),
-            _buildInfoRow('Terakhir Update', data!['tanggal_catat']),
+            Container(
+              margin: const EdgeInsets.only(top: 8, bottom: 12),
+              height: 1,
+              color: Colors.grey[300],
+            ),
+            _buildInfoRow('Stand Awal', data!['stand_awal'] ?? '0', isBlue: true),
+            _buildInfoRow('Stand Baru', data!['stand_baru'] ?? '0', isBlue: true),
+            _buildInfoRow('Kubikasi', data!['kubikasi'] ?? '0', isBlue: true),
+            _buildInfoRow('Terakhir Update', _formatDateTime(data!['tanggal_catat']), isBlue: true),
           ],
         ),
       ),
@@ -112,29 +199,45 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
   }
 
   Widget _buildPaymentSection() {
-    return Card(
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.yellow, width: 2),
+      ),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'Pembayaran',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2196F3),
+              ),
             ),
-            Divider(),
-            _buildInfoRow('Tagihan', data!['tagihan']),
-            _buildInfoRow('Dibayar', data!['dibayar']),
-            _buildInfoRow('Terhutang', data!['terhutang']),
+            Container(
+              margin: const EdgeInsets.only(top: 8, bottom: 12),
+              height: 1,
+              color: Colors.grey[300],
+            ),
+            _buildInfoRow('Tagihan', data!['tagihan'] ?? '-', isBlue: true),
+            _buildInfoRow('Dibayar', data!['dibayar'] ?? '-', isBlue: true),
+            _buildInfoRow('Terhutang', data!['terhutang'] ?? '0', isBlue: true),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, dynamic value) {
+  // Removed separate card methods as they are now part of main card sections
+
+  Widget _buildInfoRow(String label, dynamic value, {bool isBlue = false}) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -142,7 +245,11 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
             flex: 2,
             child: Text(
               label,
-              style: TextStyle(fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+                color: isBlue ? const Color(0xFF2196F3) : Colors.black87,
+              ),
             ),
           ),
           Expanded(
@@ -150,6 +257,11 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
             child: Text(
               value?.toString() ?? '-',
               textAlign: TextAlign.end,
+              style: TextStyle(
+                fontSize: 14,
+                color: isBlue ? const Color(0xFF2196F3) : Colors.black87,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -158,17 +270,49 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
   }
 
   Widget _buildHistoryButton() {
-    return ElevatedButton.icon(
-      icon: Icon(Icons.history),
-      label: Text('Lihat Histori Pencatatan'),
-      onPressed: _navigateToHistory,
-      style: ElevatedButton.styleFrom(
-        minimumSize: Size(double.infinity, 50),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+    return Container(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.history, color: Colors.white),
+        label: const Text(
+          'Lihat Histori Pencatatan',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        onPressed: _navigateToHistory,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF2196F3),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 3,
         ),
       ),
     );
+  }
+
+  String _formatDate(dynamic date) {
+    if (date == null) return '-';
+    try {
+      DateTime dateTime = DateTime.parse(date.toString());
+      return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return date.toString();
+    }
+  }
+
+  String _formatDateTime(dynamic dateTime) {
+    if (dateTime == null) return '-';
+    try {
+      DateTime dt = DateTime.parse(dateTime.toString());
+      return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}T${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}.${dt.millisecond.toString().padLeft(3, '0')}';
+    } catch (e) {
+      return dateTime.toString();
+    }
   }
 
   void _navigateToHistory() {
