@@ -261,62 +261,149 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFE3F2FD),
       appBar: AppBar(
-        title: Text('Keuangan'),
         actions: [
-          IconButton(
-            icon: Icon(Icons.file_download),
-            tooltip: 'Export ke Excel',
-            onPressed: _loading ? null : _exportExcel,
+          Container(
+            width: 60,
+            height: 40,
+            margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2196F3),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.file_download, color: Colors.white, size: 20),
+              tooltip: 'Export ke Excel',
+              onPressed: _loading ? null : _exportExcel,
+            ),
           ),
         ],
       ),
       body: _loading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              child: Column(
-                children: [
-                  _buildSection('Pendapatan (Otomatis)', pendapatan, Colors.green),
-                  Divider(),
-                  _buildSection('Pemasukkan', pemasukkan, Colors.blue,
-                    action: () => _tambahTransaksi('pemasukkan')),
-                  Divider(),
-                  _buildSection('Pengeluaran', pengeluaran, Colors.red,
-                    action: () => _tambahTransaksi('pengeluaran')),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    // Data Meteran Section
+                    _buildSection('Pendapatan', pendapatan, Colors.blue[50]!),
+                    const SizedBox(height: 16),
+                    
+                    // Pemasukkan Section
+                    _buildSection('Pemasukkan', pemasukkan, const Color(0xFFE1F5FE),
+                      action: () => _tambahTransaksi('pemasukkan')),
+                    const SizedBox(height: 16),
+                    
+                    // Pengeluaran Section
+                    _buildSection('Pengeluaran', pengeluaran, const Color(0xFFE1F5FE),
+                      action: () => _tambahTransaksi('pengeluaran')),
+                  ],
+                ),
               ),
             ),
     );
   }
 
-  Widget _buildSection(String title, List<KeuanganItem> items, Color color, {VoidCallback? action}) {
-    return Card(
-      margin: EdgeInsets.all(12),
+  Widget _buildSection(String title, List<KeuanganItem> items, Color backgroundColor, {VoidCallback? action}) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Padding(
-        padding: EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header dengan title dan tombol tambah
             Row(
               children: [
-                Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
-                Spacer(),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: title == 'Pendapatan' 
+                      ? const Color(0xFF2196F3)
+                      : const Color(0xFF2196F3),
+                  ),
+                ),
+                const Spacer(),
                 if (action != null)
-                  ElevatedButton.icon(
-                    icon: Icon(Icons.add),
-                    label: Text('Tambah'),
-                    onPressed: action,
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2196F3),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: TextButton.icon(
+                      icon: const Icon(Icons.add, color: Colors.white, size: 16),
+                      label: const Text(
+                        'Tambah',
+                        style: TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                      onPressed: action,
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
                   ),
               ],
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 12),
+            
+            // List items
             if (items.isEmpty)
-              Text('Belum ada data', style: TextStyle(color: Colors.grey)),
-            ...items.map((item) => ListTile(
-              title: Text(item.judul.isNotEmpty ? item.judul : (item.pelangganId ?? '-')),
-              subtitle: Text(_formatTanggal(item.tanggal)),
-              trailing: Text('Rp ${item.nominal}', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-            )),
+              const Text(
+                'Belum ada data',
+                style: TextStyle(color: Colors.grey, fontSize: 14),
+              )
+            else
+              ...items.map((item) => Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.judul.isNotEmpty ? item.judul : (item.pelangganId ?? '-'),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: title == 'Pendapatan' 
+                                ? const Color(0xFF2196F3)
+                                : const Color(0xFF2196F3),
+                            ),
+                          ),
+                          Text(
+                            _formatTanggal(item.tanggal),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      'Rp ${item.nominal}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: title == 'Data Meteran' 
+                          ? const Color(0xFF2196F3)
+                          : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              )),
           ],
         ),
       ),
