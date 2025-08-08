@@ -37,7 +37,6 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
         setState(() {
           _caterList = data.entries.map((e) {
             final value = Map<String, dynamic>.from(e.value as Map);
-            // Ambil kode dan nama cater dari database
             value['key'] = e.key as String;
             value['kode'] = value['kode'] ?? e.key as String;
             value['nama'] = value['nama'] ?? '';
@@ -60,7 +59,6 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
         setState(() {
           _tarifList = data.entries.map((e) {
             final value = Map<String, dynamic>.from(e.value as Map);
-            // Ambil key (Firebase key) dan nama (misal: "R2") dari database
             value['key'] = e.key as String;
             value['nama'] = value['nama'] ?? '';
             return value;
@@ -75,7 +73,6 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
   }
 
   Future<String> _generatePelangganId(String caterKode, String tarifNama) async {
-    // Contoh: [tarifNama][4digit][caterKode] => R20001D
     final ref = FirebaseDatabase.instance.ref('pelanggan');
     final snapshot = await ref.get();
     int maxUrut = 0;
@@ -83,7 +80,6 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
       final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
       for (final p in data.values) {
         final pelanggan = Map<dynamic, dynamic>.from(p);
-        // Cari ID yang cocok formatnya: [tarifNama][4digit][caterKode]
         if (pelanggan['id'] != null &&
             pelanggan['id'] is String &&
             (pelanggan['id'] as String).startsWith(tarifNama) &&
@@ -120,7 +116,6 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
       final selectedCater = _caterList.firstWhere((c) => c['kode'] == _selectedCaterKode);
       final selectedTarif = _tarifList.firstWhere((t) => t['key'] == _selectedTarifKey);
 
-      // Gunakan nama tarif (bukan key Firebase) dan kode cater dari database
       final id = await _generatePelangganId(selectedCater['kode'], selectedTarif['nama']);
       await FirebaseDatabase.instance.ref('pelanggan/$id').set({
         'id': id,
@@ -169,130 +164,377 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Tambah Pelanggan')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              if (_selectedCaterKode != null && _selectedTarifKey != null)
-                FutureBuilder<String>(
-                  future: () {
-                    final selectedCater = _caterList.firstWhere(
-                        (c) => c['kode'] == _selectedCaterKode,
-                        orElse: () => {});
-                    final selectedTarif = _tarifList.firstWhere(
-                        (t) => t['key'] == _selectedTarifKey,
-                        orElse: () => {});
-                    if (selectedCater.isEmpty || selectedTarif.isEmpty) {
-                      return Future.value('-');
-                    }
-                    return _generatePelangganId(
-                        selectedCater['kode'], selectedTarif['nama']);
-                  }(),
-                  builder: (context, snapshot) => Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'ID Pelanggan (Otomatis)',
-                        border: OutlineInputBorder(),
+      backgroundColor: Colors.grey[50],
+      body: Column(
+        children: [
+          // Header biru dengan judul
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Color(0xFF2196F3),
+            ),
+            child: SafeArea(
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                child: Row(
+                  children: [
+                    // Tombol back
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: Icon(
+                        Icons.arrow_back,
+                        color: Colors.white,
+                        size: 28,
                       ),
-                      child: Text(snapshot.data ?? '-'),
                     ),
-                  ),
-                ),
-              TextFormField(
-                controller: _namaController,
-                decoration: const InputDecoration(labelText: 'Nama Pelanggan'),
-                validator: (v) => v == null || v.isEmpty ? 'Nama wajib diisi' : null,
-              ),
-              TextFormField(
-                controller: _alamatController,
-                decoration: const InputDecoration(labelText: 'Alamat'),
-                validator: (v) => v == null || v.isEmpty ? 'Alamat wajib diisi' : null,
-              ),
-              TextFormField(
-                controller: _telponController,
-                decoration: const InputDecoration(labelText: 'No. Telpon'),
-                keyboardType: TextInputType.phone,
-                validator: (v) => v == null || v.isEmpty ? 'No telpon wajib diisi' : null,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => _pickTanggalSambung(context),
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Tanggal Sambung',
-                          border: OutlineInputBorder(),
+                    Expanded(
+                      child: Text(
+                        'TAMBAH PELANGGAN',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
                         ),
+                      ),
+                    ),
+                    // Logo/Icon di kanan
+                    Container(
+                      width: 45,
+                      height: 45,
+                      decoration: BoxDecoration(
+                        color: Colors.yellow[600],
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: Center(
                         child: Text(
-                          _tanggalSambung != null
-                              ? "${_tanggalSambung!.day}/${_tanggalSambung!.month}/${_tanggalSambung!.year}"
-                              : 'Pilih tanggal',
-                          style: TextStyle(
-                            color: _tanggalSambung == null ? Colors.grey : Colors.black,
-                          ),
+                          '💧',
+                          style: TextStyle(fontSize: 20),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _koordinatController,
-                decoration: const InputDecoration(labelText: 'Koordinat (lat,long)'),
-                validator: (v) => v == null || v.isEmpty ? 'Koordinat wajib diisi' : null,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _selectedCaterKode,
-                items: _caterList.map((c) {
-                  final kode = c['kode'] as String;
-                  final nama = c['nama'] ?? '';
-                  return DropdownMenuItem<String>(
-                    value: kode,
-                    child: Text("$kode - $nama"),
-                  );
-                }).toList(),
-                onChanged: (v) => setState(() => _selectedCaterKode = v),
-                decoration: const InputDecoration(labelText: 'Cater'),
-                validator: (v) => v == null ? 'Cater wajib dipilih' : null,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _selectedTarifKey,
-                items: _tarifList.map((t) {
-                  final key = t['key'] as String;
-                  final nama = t['nama'] ?? '';
-                  final harga = t['harga'] ?? '';
-                  return DropdownMenuItem<String>(
-                    value: key,
-                    child: Text("$nama (Rp $harga/m³)"),
-                  );
-                }).toList(),
-                onChanged: (v) => setState(() => _selectedTarifKey = v),
-                decoration: const InputDecoration(labelText: 'Tarif'),
-                validator: (v) => v == null ? 'Tarif wajib dipilih' : null,
-              ),
-              const SizedBox(height: 24),
-              _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _simpanPelanggan,
-                        child: const Text('Simpan'),
+            ),
+          ),
+          
+          // Content area dengan card
+          Expanded(
+            child: Container(
+              padding: EdgeInsets.all(16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Color(0xFF2196F3), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Form(
+                        key: _formKey,
+                        child: ListView(
+                          padding: EdgeInsets.all(24),
+                          children: [
+                            // ID Pelanggan Preview
+                            if (_selectedCaterKode != null && _selectedTarifKey != null)
+                              Container(
+                                margin: EdgeInsets.only(bottom: 20),
+                                padding: EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Color(0xFF2196F3).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Color(0xFF2196F3).withOpacity(0.3)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'ID Pelanggan (Otomatis)',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF2196F3),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    FutureBuilder<String>(
+                                      future: () {
+                                        final selectedCater = _caterList.firstWhere(
+                                            (c) => c['kode'] == _selectedCaterKode,
+                                            orElse: () => {});
+                                        final selectedTarif = _tarifList.firstWhere(
+                                            (t) => t['key'] == _selectedTarifKey,
+                                            orElse: () => {});
+                                        if (selectedCater.isEmpty || selectedTarif.isEmpty) {
+                                          return Future.value('-');
+                                        }
+                                        return _generatePelangganId(
+                                            selectedCater['kode'], selectedTarif['nama']);
+                                      }(),
+                                      builder: (context, snapshot) => Text(
+                                        snapshot.data ?? '-',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            
+                            // Nama Pelanggan
+                            _buildCustomTextField(
+                              controller: _namaController,
+                              label: 'Nama Pelanggan',
+                              validator: (v) => v == null || v.isEmpty ? 'Nama wajib diisi' : null,
+                            ),
+                            SizedBox(height: 20),
+                            
+                            // Alamat
+                            _buildCustomTextField(
+                              controller: _alamatController,
+                              label: 'Alamat',
+                              validator: (v) => v == null || v.isEmpty ? 'Alamat wajib diisi' : null,
+                            ),
+                            SizedBox(height: 20),
+                            
+                            // No Telepon
+                            _buildCustomTextField(
+                              controller: _telponController,
+                              label: 'No Telepon',
+                              keyboardType: TextInputType.phone,
+                              validator: (v) => v == null || v.isEmpty ? 'No telpon wajib diisi' : null,
+                            ),
+                            SizedBox(height: 20),
+                            
+                            // Tanggal Sambung
+                            InkWell(
+                              onTap: () => _pickTanggalSambung(context),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.yellow, width: 1.5),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Tanggal Sambung',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFF2196F3),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          _tanggalSambung != null
+                                              ? "${_tanggalSambung!.day}/${_tanggalSambung!.month}/${_tanggalSambung!.year}"
+                                              : 'Pilih Tanggal',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: _tanggalSambung == null ? Colors.grey[400] : Colors.black87,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Icon(Icons.calendar_today, color: Color(0xFF2196F3), size: 20),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 20),
+                            
+                            // Koordinat
+                            _buildCustomTextField(
+                              controller: _koordinatController,
+                              label: 'Koordinat',
+                              validator: (v) => v == null || v.isEmpty ? 'Koordinat wajib diisi' : null,
+                            ),
+                            SizedBox(height: 20),
+                            
+                            // Cater
+                            _buildCustomDropdown<String>(
+                              value: _selectedCaterKode,
+                              label: 'Cater',
+                              items: _caterList.map((c) {
+                                final kode = c['kode'] as String;
+                                final nama = c['nama'] ?? '';
+                                return DropdownMenuItem<String>(
+                                  value: kode,
+                                  child: Text("$kode - $nama"),
+                                );
+                              }).toList(),
+                              onChanged: (v) => setState(() => _selectedCaterKode = v),
+                              validator: (v) => v == null ? 'Cater wajib dipilih' : null,
+                            ),
+                            SizedBox(height: 20),
+                            
+                            // Tarif
+                            _buildCustomDropdown<String>(
+                              value: _selectedTarifKey,
+                              label: 'Tarif',
+                              items: _tarifList.map((t) {
+                                final key = t['key'] as String;
+                                final nama = t['nama'] ?? '';
+                                final harga = t['harga'] ?? '';
+                                return DropdownMenuItem<String>(
+                                  value: key,
+                                  child: Text("$nama (Rp $harga/m³)"),
+                                );
+                              }).toList(),
+                              onChanged: (v) => setState(() => _selectedTarifKey = v),
+                              validator: (v) => v == null ? 'Tarif wajib dipilih' : null,
+                            ),
+                            SizedBox(height: 32),
+                          ],
+                        ),
                       ),
                     ),
-            ],
+                    
+                    // Tombol Lanjut ke Pembayaran
+                    Container(
+                      padding: EdgeInsets.all(24),
+                      child: _loading
+                          ? Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2196F3)),
+                              ),
+                            )
+                          : SizedBox(
+                              width: double.infinity,
+                              height: 50,
+                              child: ElevatedButton(
+                                onPressed: _simpanPelanggan,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Color(0xFF2196F3),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(25),
+                                  ),
+                                ),
+                                child: Text(
+                                  'SIMPAN',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomTextField({
+    required TextEditingController controller,
+    required String label,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: Color(0xFF2196F3),
+            fontWeight: FontWeight.w500,
           ),
         ),
-      ),
+        SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          validator: validator,
+          decoration: InputDecoration(
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Color(0xFF2196F3).withOpacity(0.3)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Color(0xFF2196F3).withOpacity(0.3)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Color(0xFF2196F3), width: 2),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCustomDropdown<T>({
+    required T? value,
+    required String label,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
+    String? Function(T?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: Color(0xFF2196F3),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        SizedBox(height: 8),
+        DropdownButtonFormField<T>(
+          value: value,
+          items: items,
+          onChanged: onChanged,
+          validator: validator,
+          decoration: InputDecoration(
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Color(0xFF2196F3).withOpacity(0.3)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Color(0xFF2196F3).withOpacity(0.3)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Color(0xFF2196F3), width: 2),
+            ),
+            suffixIcon: Icon(Icons.keyboard_arrow_down, color: Color(0xFF2196F3)),
+          ),
+        ),
+      ],
     );
   }
 }
