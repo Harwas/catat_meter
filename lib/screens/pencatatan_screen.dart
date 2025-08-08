@@ -73,69 +73,157 @@ class _PencatatanScreenState extends State<PencatatanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Daftar Pelanggan'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _loadPelanggan,
-          ),
-        ],
-      ),
+      backgroundColor: Colors.grey[50],
       body: _loading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      labelText: 'Cari pelanggan (nama, ID, tarif)',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(),
-                    ),
-                    style: TextStyle(fontSize: 18),
+                // Search Bar + Refresh Button
+                Container(
+                  color: const Color(0xFF2196F3),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                  child: Row(
+                    children: [
+                      // Expanded Search Field
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(25),
+                            border: Border.all(color: Colors.blue.shade200, width: 2),
+                          ),
+                          child: TextField(
+                            controller: _searchController,
+                            decoration: const InputDecoration(
+                              hintText: 'Cari Pelanggan (nama, alamat, id)',
+                              hintStyle: TextStyle(color: Colors.blue, fontSize: 16),
+                              prefixIcon: Icon(Icons.search, color: Colors.blue, size: 24),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                            ),
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Refresh Button
+                      Material(
+                        color: Colors.white,
+                        shape: const CircleBorder(),
+                        child: IconButton(
+                          icon: const Icon(Icons.refresh, color: Color(0xFF2196F3)),
+                          onPressed: _loadPelanggan,
+                          tooltip: 'Refresh',
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+
+                // List Pelanggan
                 Expanded(
                   child: filteredPelangganList.isEmpty
                       ? Center(
-                          child: Text(
-                            'Tidak ada data pelanggan',
-                            style: TextStyle(fontSize: 16),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Tidak ada data pelanggan',
+                                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                              ),
+                            ],
                           ),
                         )
                       : RefreshIndicator(
                           onRefresh: _loadPelanggan,
                           child: ListView.builder(
-                            padding: EdgeInsets.symmetric(vertical: 8),
+                            padding: const EdgeInsets.all(16),
                             itemCount: filteredPelangganList.length,
                             itemBuilder: (context, index) {
                               final pelanggan = filteredPelangganList[index];
-                              return Card(
-                                margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                child: ListTile(
-                                  title: Text(
-                                    pelanggan['nama']?.toString() ?? 'Nama tidak tersedia',
-                                    style: TextStyle(fontWeight: FontWeight.bold),
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                child: Card(
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: BorderSide(
+                                      color: Colors.blue.withOpacity(0.3),
+                                      width: 1.5,
+                                    ),
                                   ),
-                                  subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('ID: ${pelanggan['id']}'),
-                                      Text('Tarif: ${pelanggan['tarif_nama']?.toString().split('_').first ?? '-'}'),
-                                    ],
-                                  ),
-                                  trailing: Icon(Icons.arrow_forward_ios, size: 16),
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => FormKalkulasiScreen(pelanggan: pelanggan),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(12),
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              FormKalkulasiScreen(pelanggan: pelanggan),
+                                        ),
+                                      );
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(20),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  pelanggan['nama']?.toString() ?? 'NAMA PELANGGAN',
+                                                  style: TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.blue[700],
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Container(
+                                                  height: 2,
+                                                  width: double.infinity,
+                                                  color: Colors.blue[300],
+                                                ),
+                                                const SizedBox(height: 12),
+                                                Text(
+                                                  'ID: ${pelanggan['id'] ?? 'R30001D'}',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Colors.grey[700],
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'Tarif: ${pelanggan['tarif_nama']?.toString().split('_').first ?? 'R3'}',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Colors.grey[700],
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: Colors.blue.withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Icon(
+                                              Icons.arrow_forward_ios,
+                                              color: Colors.blue[600],
+                                              size: 20,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    );
-                                  },
+                                    ),
+                                  ),
                                 ),
                               );
                             },
