@@ -105,10 +105,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: Colors.yellow,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.water_drop,
-                color: Color(0xFF2196F3),
-                size: 24,
+              child: ClipOval( // biar gambar ikut bentuk lingkaran
+                child: Image.asset(
+                  'assets/images/PROFIL.PNG',
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
           ],
@@ -296,7 +297,7 @@ class CustomBottomNavigationBar extends StatelessWidget {
         ),
         child: Icon(
           icon,
-          color: isSelected ? Colors.white : Colors.grey[600],
+          color: isSelected ? Colors.white : Colors.black,
           size: isSelected ? 32 : 24,
         ),
       ),

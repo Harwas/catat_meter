@@ -62,44 +62,34 @@ class _TambahTarifScreenState extends State<TambahTarifScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'TAMBAH TARIF',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              width: 40,
-              height: 40,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFEB3B),
-                shape: BoxShape.circle,
-              ),
-              child: ClipOval(
-                child: Image.asset(
-                  'assets/images/PROFIL.png',
-                  width: 35,
-                  height: 35,
-                  fit: BoxFit.contain,
-                  // Menangani error jika gambar tidak ditemukan
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(
-                      Icons.water_drop,
-                      color: Color(0xFF2196F3),
-                      size: 24,
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
+        title: const Text(
+          'TAMBAH TARIF',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFEB3B),
+              shape: BoxShape.circle,
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/PROFIL.PNG',
+                width: 35,
+                height: 35,
+                fit: BoxFit.contain,
+                // Menangani error jika gambar tidak ditemukan
+              ),
+            ),
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),

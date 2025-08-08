@@ -61,16 +61,21 @@ class _TambahCaterScreenState extends State<TambahCaterScreen> {
             ),
             const SizedBox(width: 8),
             Container(
+              margin: const EdgeInsets.only(right: 16),
               width: 40,
               height: 40,
               decoration: const BoxDecoration(
-                color: Color(0xFF7ED321), // Warna hijau untuk logo
+                color: Color(0xFFFFEB3B),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.water_drop,
-                color: Colors.white,
-                size: 24,
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/PROFIL.PNG',
+                  width: 35,
+                  height: 35,
+                  fit: BoxFit.contain,
+                  // Menangani error jika gambar tidak ditemukan
+                ),
               ),
             ),
           ],

@@ -155,16 +155,21 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
                     
                     // Logo/Icon
                     Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: Colors.yellow,
+                      margin: const EdgeInsets.only(right: 16),
+                      width: 40,
+                      height: 40,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFFEB3B),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
-                        Icons.waves,
-                        color: Colors.blue,
-                        size: 30,
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/images/PROFIL.PNG',
+                          width: 35,
+                          height: 35,
+                          fit: BoxFit.contain,
+                          // Menangani error jika gambar tidak ditemukan
+                        ),
                       ),
                     ),
                   ],

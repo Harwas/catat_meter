@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:excel/excel.dart';
+import 'package:excel/excel.dart' as excel;
 import 'package:path_provider/path_provider.dart';
 
 // Data model
@@ -107,93 +107,146 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
   }
 
   Future<void> _tambahTransaksi(String kategori) async {
-    String judul = '';
-    int nominal = 0;
-    DateTime? tanggal;
+  String judul = '';
+  int nominal = 0;
+  DateTime? tanggal;
 
-    await showDialog(
-      context: context,
-      builder: (context) {
-        final _judulController = TextEditingController();
-        final _nominalController = TextEditingController();
-        DateTime selectedDate = DateTime.now();
+  await showModalBottomSheet(
+    context: context,
+    isScrollControlled: true, // biar tinggi mengikuti konten
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    backgroundColor: Colors.white,
+    builder: (context) {
+      final _judulController = TextEditingController();
+      final _nominalController = TextEditingController();
+      DateTime selectedDate = DateTime.now();
 
-        return StatefulBuilder(
-          builder: (context, setStateDialog) => AlertDialog(
-            title: Text('Tambah $kategori'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: _judulController,
-                  decoration: InputDecoration(labelText: 'Judul'),
+      return Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          left: 20,
+          right: 20,
+          top: 20,
+        ),
+        child: StatefulBuilder(
+          builder: (context, setStateDialog) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Tambah $kategori',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2196F3),
                 ),
-                TextField(
-                  controller: _nominalController,
-                  decoration: InputDecoration(labelText: 'Nominal'),
-                  keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _judulController,
+                decoration: const InputDecoration(
+                  labelText: 'Judul',
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF2196F3)),
+                  ),
                 ),
-                SizedBox(height: 12),
-                Row(
-                  children: [
-                    Text("Tanggal: ${selectedDate.day}/${selectedDate.month}/${selectedDate.year}"),
-                    Spacer(),
-                    TextButton(
-                      child: Text('Pilih Tanggal'),
-                      onPressed: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: selectedDate,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime(2100),
-                        );
-                        if (picked != null) {
-                          setStateDialog(() {
-                            selectedDate = picked;
-                          });
-                        }
-                      },
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _nominalController,
+                decoration: const InputDecoration(
+                  labelText: 'Nominal',
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF2196F3)),
+                  ),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      "Tanggal: ${_formatTanggal(selectedDate.toIso8601String())}",
                     ),
-                  ],
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                child: Text('Batal'),
-                onPressed: () => Navigator.pop(context),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2100),
+                      );
+                      if (picked != null) {
+                        setStateDialog(() {
+                          selectedDate = picked;
+                        });
+                      }
+                    },
+                    child: const Text(
+                      'Pilih Tanggal',
+                      style: TextStyle(
+                        color: Color(0xFF2196F3),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              ElevatedButton(
-                child: Text('Simpan'),
-                onPressed: () {
-                  judul = _judulController.text;
-                  nominal = int.tryParse(_nominalController.text) ?? 0;
-                  tanggal = selectedDate;
-                  Navigator.pop(context);
-                },
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Batal', style: TextStyle(color: Color(0xFF2196F3))),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () async {
+                      judul = _judulController.text;
+                      nominal = int.tryParse(_nominalController.text) ?? 0;
+                      tanggal = selectedDate;
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2196F3),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Simpan'),
+                  ),
+                ],
               ),
+              const SizedBox(height: 16),
             ],
           ),
-        );
-      },
-    );
+        ),
+      );
+    },
+  );
 
-    // Simpan transaksi jika valid
-    if (judul.isNotEmpty && nominal > 0 && tanggal != null) {
-      final idTransaksi = DateTime.now().millisecondsSinceEpoch.toString();
-      await FirebaseDatabase.instance.ref('$kategori/$idTransaksi').set({
-        'judul': judul,
-        'nominal': nominal,
-        'tanggal': tanggal!.toIso8601String(),
-      });
-      _loadKeuangan();
-    }
+  // Simpan transaksi jika valid
+  if (judul.isNotEmpty && nominal > 0 && tanggal != null) {
+    final idTransaksi = DateTime.now().millisecondsSinceEpoch.toString();
+    await FirebaseDatabase.instance.ref('$kategori/$idTransaksi').set({
+      'judul': judul,
+      'nominal': nominal,
+      'tanggal': tanggal!.toIso8601String(),
+    });
+    _loadKeuangan();
   }
+}
+
 
   Future<void> _exportExcel() async {
-    var excel = Excel.createExcel();
+    final excel.Excel excelFile = excel.Excel.createExcel();
+    
     // Pendapatan Sheet
-    Sheet pendSheet = excel['Pendapatan'];
+    excel.Sheet pendSheet = excelFile['Pendapatan'];
     pendSheet.appendRow(['ID', 'Nominal', 'Pelanggan ID', 'Tanggal']);
     for (var item in pendapatan) {
       pendSheet.appendRow([
@@ -205,7 +258,7 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
     }
 
     // Pemasukkan Sheet
-    Sheet masukSheet = excel['Pemasukkan'];
+    excel.Sheet masukSheet = excelFile['Pemasukkan'];
     masukSheet.appendRow(['ID', 'Nominal', 'Judul', 'Tanggal']);
     for (var item in pemasukkan) {
       masukSheet.appendRow([
@@ -217,7 +270,7 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
     }
 
     // Pengeluaran Sheet
-    Sheet keluarSheet = excel['Pengeluaran'];
+    excel.Sheet keluarSheet = excelFile['Pengeluaran'];
     keluarSheet.appendRow(['ID', 'Nominal', 'Judul', 'Tanggal']);
     for (var item in pengeluaran) {
       keluarSheet.appendRow([
@@ -242,7 +295,7 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
       }
       filePath = '${directory.path}/keuangan_export_${DateTime.now().millisecondsSinceEpoch}.xlsx';
       final file = File(filePath);
-      await file.writeAsBytes(excel.save()!);
+      await file.writeAsBytes(excelFile.save()!);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -262,24 +315,6 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFE3F2FD),
-      appBar: AppBar(
-        actions: [
-          Container(
-            width: 60,
-            height: 40,
-            margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2196F3),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.file_download, color: Colors.white, size: 20),
-              tooltip: 'Export ke Excel',
-              onPressed: _loading ? null : _exportExcel,
-            ),
-          ),
-        ],
-      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -287,48 +322,45 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    // Data Meteran Section
-                    _buildSection('Pendapatan', pendapatan, Colors.blue[50]!),
+                    _buildSection('Pendapatan', pendapatan),
                     const SizedBox(height: 16),
-                    
-                    // Pemasukkan Section
-                    _buildSection('Pemasukkan', pemasukkan, const Color(0xFFE1F5FE),
-                      action: () => _tambahTransaksi('pemasukkan')),
+                    _buildSection('Pemasukkan', pemasukkan, action: () => _tambahTransaksi('pemasukkan')),
                     const SizedBox(height: 16),
-                    
-                    // Pengeluaran Section
-                    _buildSection('Pengeluaran', pengeluaran, const Color(0xFFE1F5FE),
-                      action: () => _tambahTransaksi('pengeluaran')),
+                    _buildSection('Pengeluaran', pengeluaran, action: () => _tambahTransaksi('pengeluaran')),
                   ],
                 ),
               ),
             ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _loading ? null : _exportExcel,
+        backgroundColor: const Color(0xFF2196F3),
+        child: const Icon(Icons.file_download, color: Colors.white),
+        tooltip: 'Export ke Excel',
+      ),
     );
   }
 
-  Widget _buildSection(String title, List<KeuanganItem> items, Color backgroundColor, {VoidCallback? action}) {
+  Widget _buildSection(String title, List<KeuanganItem> items, {VoidCallback? action}) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: Colors.blue[50]!,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.yellow[700]!, width: 1.5),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header dengan title dan tombol tambah
             Row(
               children: [
                 Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: title == 'Pendapatan' 
-                      ? const Color(0xFF2196F3)
-                      : const Color(0xFF2196F3),
+                    color: Color(0xFF2196F3),
                   ),
                 ),
                 const Spacer(),
@@ -355,8 +387,6 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            
-            // List items
             if (items.isEmpty)
               const Text(
                 'Belum ada data',
@@ -373,12 +403,10 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
                         children: [
                           Text(
                             item.judul.isNotEmpty ? item.judul : (item.pelangganId ?? '-'),
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
-                              color: title == 'Pendapatan' 
-                                ? const Color(0xFF2196F3)
-                                : const Color(0xFF2196F3),
+                              color: Color(0xFF2196F3),
                             ),
                           ),
                           Text(
@@ -393,12 +421,10 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
                     ),
                     Text(
                       'Rp ${item.nominal}',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: title == 'Data Meteran' 
-                          ? const Color(0xFF2196F3)
-                          : Colors.black87,
+                        color: Color(0xFF2196F3),
                       ),
                     ),
                   ],

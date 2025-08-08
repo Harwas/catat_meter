@@ -201,17 +201,20 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
                     ),
                     // Logo/Icon di kanan
                     Container(
-                      width: 45,
-                      height: 45,
-                      decoration: BoxDecoration(
-                        color: Colors.yellow[600],
+                      margin: const EdgeInsets.only(right: 16),
+                      width: 40,
+                      height: 40,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFFEB3B),
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
                       ),
-                      child: Center(
-                        child: Text(
-                          '💧',
-                          style: TextStyle(fontSize: 20),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/images/PROFIL.PNG',
+                          width: 35,
+                          height: 35,
+                          fit: BoxFit.contain,
+                          // Menangani error jika gambar tidak ditemukan
                         ),
                       ),
                     ),

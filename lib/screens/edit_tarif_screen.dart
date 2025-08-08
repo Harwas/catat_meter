@@ -102,17 +102,21 @@ class _EditTarifScreenState extends State<EditTarifScreen> {
         actions: [
           // Logo/Icon placeholder (sesuai desain)
           Container(
-            margin: EdgeInsets.only(right: 16),
+            margin: const EdgeInsets.only(right: 16),
             width: 40,
             height: 40,
-            decoration: BoxDecoration(
-              color: Colors.yellow,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFEB3B),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.price_change,
-              color: Color(0xFF2196F3),
-              size: 24,
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/PROFIL.PNG',
+                width: 35,
+                height: 35,
+                fit: BoxFit.contain,
+                // Menangani error jika gambar tidak ditemukan
+              ),
             ),
           ),
         ],

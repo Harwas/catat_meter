@@ -77,19 +77,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
         centerTitle: true,
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.yellow,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(
-                Icons.water_drop,
-                color: Color(0xFF2196F3),
-                size: 24,
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFEB3B),
+              shape: BoxShape.circle,
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/PROFIL.PNG',
+                width: 35,
+                height: 35,
+                fit: BoxFit.contain,
+                // Menangani error jika gambar tidak ditemukan
               ),
             ),
           ),
