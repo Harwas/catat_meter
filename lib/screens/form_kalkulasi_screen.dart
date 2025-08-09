@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'form_pembayaran_screen.dart';
 
 class FormKalkulasiScreen extends StatefulWidget {
@@ -12,28 +13,15 @@ class FormKalkulasiScreen extends StatefulWidget {
 class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
   final _formKey = GlobalKey<FormState>();
   final _standBaruController = TextEditingController();
+
   int _kubikasi = 0;
   int _tagihan = 0;
   int _terhutangSebelumnya = 0;
   int _standAwal = 0;
+  int _hargaPerKubik = 0;
+  String _jenisTarif = '';
 
   int _toInt(dynamic value) => int.tryParse(value?.toString() ?? '0') ?? 0;
-
-  String _getJenisTarif() {
-    return widget.pelanggan['tarif']?.toString().split('_').first ?? 'P1';
-  }
-
-  int _getHargaPerKubik(String jenisTarif) {
-    switch (jenisTarif) {
-      case 'R1':
-        return 5000;
-      case 'S1':
-        return 6000;
-      case 'P1':
-      default:
-        return 7000;
-    }
-  }
 
   @override
   void initState() {
@@ -41,14 +29,36 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
     _standAwal = _toInt(widget.pelanggan['stand_baru'] ?? widget.pelanggan['stand_awal']);
     _standBaruController.text = _standAwal.toString();
     _terhutangSebelumnya = _toInt(widget.pelanggan['terhutang']);
-    _hitungKubikasi();
+
+    // Ambil tarif dari Firebase
+    _loadTarif().then((_) {
+      _hitungKubikasi();
+    });
+  }
+
+  Future<void> _loadTarif() async {
+    final tarifKey = widget.pelanggan['tarif_key'];
+    if (tarifKey == null) return;
+
+    final snapshot = await FirebaseDatabase.instance
+        .ref()
+        .child('tarif')
+        .child(tarifKey)
+        .get();
+
+    if (snapshot.exists) {
+      final data = snapshot.value as Map<dynamic, dynamic>;
+      setState(() {
+        _hargaPerKubik = _toInt(data['harga_per_m3']);
+        _jenisTarif = data['nama']?.toString() ?? '';
+      });
+    }
   }
 
   void _hitungKubikasi() {
     final standBaru = int.tryParse(_standBaruController.text) ?? _standAwal;
     final pemakaian = standBaru - _standAwal;
-    final harga = _getHargaPerKubik(_getJenisTarif());
-    final tagihanBaru = pemakaian * harga;
+    final tagihanBaru = pemakaian * _hargaPerKubik;
     final totalTagihan = tagihanBaru + _terhutangSebelumnya;
 
     setState(() {
@@ -86,7 +96,7 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
       backgroundColor: Colors.grey[100],
       body: Column(
         children: [
-          // Header Section with Blue Background
+          // Header Section
           Container(
             decoration: BoxDecoration(
               color: Color(0xFF2196F3),
@@ -100,17 +110,10 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   children: [
-                    // Back Button
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: Icon(
-                        Icons.arrow_back,
-                        color: Colors.white,
-                        size: 28,
-                      ),
+                      icon: Icon(Icons.arrow_back, color: Colors.white, size: 28),
                     ),
-                    
-                    // Title
                     Expanded(
                       child: Center(
                         child: Text(
@@ -124,8 +127,6 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                         ),
                       ),
                     ),
-                    
-                    // Logo/Icon
                     Container(
                       margin: const EdgeInsets.only(right: 16),
                       width: 40,
@@ -140,7 +141,6 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                           width: 35,
                           height: 35,
                           fit: BoxFit.contain,
-                          // Menangani error jika gambar tidak ditemukan
                         ),
                       ),
                     ),
@@ -149,7 +149,7 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
               ),
             ),
           ),
-          
+
           // Content
           Expanded(
             child: SingleChildScrollView(
@@ -160,8 +160,6 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                   child: Column(
                     children: [
                       SizedBox(height: 10),
-                      
-                      // Main Card Container
                       Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
@@ -171,7 +169,6 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                           boxShadow: [
                             BoxShadow(
                               color: Colors.grey.withOpacity(0.1),
-                              spreadRadius: 0,
                               blurRadius: 10,
                               offset: Offset(0, 2),
                             ),
@@ -182,7 +179,6 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Header Section
                               Text(
                                 widget.pelanggan['nama'] ?? '',
                                 style: TextStyle(
@@ -192,15 +188,13 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                                 ),
                               ),
                               SizedBox(height: 16),
-                              
-                              // Customer Details
-                              _buildInfoField('ID', widget.pelanggan['id']?.toString() ?? 'R30001D'),
+                              _buildInfoField('ID', widget.pelanggan['id']?.toString() ?? ''),
                               SizedBox(height: 12),
-                              _buildInfoField('Tarif_nama', _getJenisTarif()),
+                              _buildInfoField('Tarif', _jenisTarif),
                               SizedBox(height: 12),
                               _buildInfoField('Stand Awal', _standAwal.toString()),
                               SizedBox(height: 16),
-                              
+
                               // Stand Baru Input
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,27 +218,22 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                                       focusedBorder: UnderlineInputBorder(
                                         borderSide: BorderSide(color: Colors.blue[600]!, width: 2),
                                       ),
-                                      enabledBorder: UnderlineInputBorder(
-                                        borderSide: BorderSide(color: Colors.blue[300]!),
-                                      ),
                                     ),
                                     keyboardType: TextInputType.number,
-                                    onChanged: (value) => _hitungKubikasi(),
+                                    onChanged: (_) => _hitungKubikasi(),
                                     validator: (value) {
                                       if (value == null || value.isEmpty) return 'Harus diisi';
                                       final newValue = int.tryParse(value);
                                       if (newValue == null) return 'Harus angka';
-                                      if (newValue <= _standAwal) {
-                                        return 'Stand baru harus lebih besar';
-                                      }
+                                      if (newValue <= _standAwal) return 'Stand baru harus lebih besar';
                                       return null;
                                     },
                                   ),
                                 ],
                               ),
                               SizedBox(height: 24),
-                              
-                              // Rincian Tagihan Card
+
+                              // Rincian Tagihan
                               Container(
                                 width: double.infinity,
                                 decoration: BoxDecoration(
@@ -268,7 +257,7 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                                       SizedBox(height: 16),
                                       _buildBillingRow('Pemakaian', '$_kubikasi m³'),
                                       SizedBox(height: 8),
-                                      _buildBillingRow('Tarif', '${_formatCurrency(_getHargaPerKubik(_getJenisTarif()))}/m³'),
+                                      _buildBillingRow('Tarif', '${_formatCurrency(_hargaPerKubik)}/m³'),
                                       SizedBox(height: 8),
                                       _buildBillingRow('Terhutang Sebelumnya', _formatCurrency(_terhutangSebelumnya)),
                                       SizedBox(height: 12),
@@ -284,28 +273,15 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                         ),
                       ),
                       SizedBox(height: 24),
-                      
+
                       // Button
                       Container(
                         width: double.infinity,
                         height: 50,
-                        decoration: BoxDecoration(
-                          color: Color(0xFF2196F3),
-                          borderRadius: BorderRadius.circular(25),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.blue.shade200.withOpacity(0.3),
-                              spreadRadius: 0,
-                              blurRadius: 8,
-                              offset: Offset(0, 3),
-                            ),
-                          ],
-                        ),
                         child: ElevatedButton(
                           onPressed: _lanjutPembayaran,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
+                            backgroundColor: Color(0xFF2196F3),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(25),
                             ),
@@ -327,9 +303,6 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
               ),
             ),
           ),
-          
-          // Bottom Navigation Bar
-          
         ],
       ),
     );
@@ -339,22 +312,9 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.blue[600],
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+        Text(label, style: TextStyle(fontSize: 14, color: Colors.blue[600], fontWeight: FontWeight.w500)),
         SizedBox(height: 8),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey[700],
-          ),
-        ),
+        Text(value, style: TextStyle(fontSize: 16, color: Colors.grey[700])),
         SizedBox(height: 8),
         Divider(color: Colors.blue[200], height: 1, thickness: 1),
       ],
@@ -365,22 +325,8 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.blue[600],
-            fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.blue[600],
-            fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
+        Text(label, style: TextStyle(fontSize: 14, color: Colors.blue[600], fontWeight: isBold ? FontWeight.w600 : FontWeight.normal)),
+        Text(value, style: TextStyle(fontSize: 14, color: Colors.blue[600], fontWeight: isBold ? FontWeight.w600 : FontWeight.normal)),
       ],
     );
   }
