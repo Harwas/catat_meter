@@ -38,6 +38,8 @@ dependencies:
   path_provider: ^2.0.14
   pdf: ^3.10.4
   printing: ^5.12.0
+  permission_handler: ^11.0.1  # Untuk permission
+  open_file: ^3.3.2          # Optional: untuk membuka file
     # hive: ^2.2.3
     # hive_flutter: ^1.1.0
 
