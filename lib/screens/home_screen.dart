@@ -74,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      // backgroundColor: Colors.grey[100],
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(80),
         child: AppBar(
@@ -224,15 +224,15 @@ class CustomBottomNavigationBar extends StatelessWidget {
       child: Stack(
         children: [
           // Bottom navigation background (white box)
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 70,
-              color: Colors.white,
-            ),
-          ),
+          // Positioned(
+          //   bottom: 0,
+          //   left: 0,
+          //   right: 0,
+          //   child: Container(
+          //     height: 70,
+          //     color: Colors.white,
+          //   ),
+          // ),
           // Wave decorations
           CustomPaint(
             size: Size(MediaQuery.of(context).size.width, 100),

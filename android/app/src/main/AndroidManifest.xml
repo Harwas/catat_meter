@@ -1,16 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     
     <!-- ============ TAMBAHKAN PERMISSION DI SINI ============ -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <!-- <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" /> -->
     <!-- ===================================================== -->
     
     <application
         android:label="catat_meter"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
-        android:requestLegacyExternalStorage="true">  <!-- TAMBAHKAN INI -->
+        android:icon="@mipmap/ic_launcher">
         
         <activity
             android:name=".MainActivity"
