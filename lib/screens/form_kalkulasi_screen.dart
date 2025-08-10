@@ -30,27 +30,37 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
     _standBaruController.text = _standAwal.toString();
     _terhutangSebelumnya = _toInt(widget.pelanggan['terhutang']);
 
-    // Ambil tarif dari Firebase
     _loadTarif().then((_) {
       _hitungKubikasi();
     });
   }
 
   Future<void> _loadTarif() async {
-    final tarifKey = widget.pelanggan['tarif_key'];
-    if (tarifKey == null) return;
+    String? tarifKey = widget.pelanggan['tarif_key'];
 
-    final snapshot = await FirebaseDatabase.instance
-        .ref()
-        .child('tarif')
-        .child(tarifKey)
-        .get();
+    DatabaseReference ref = FirebaseDatabase.instance.ref().child('tarif');
 
-    if (snapshot.exists) {
-      final data = snapshot.value as Map<dynamic, dynamic>;
+    if (tarifKey != null) {
+      // Ambil tarif sesuai key
+      final snapshot = await ref.child(tarifKey).get();
+      if (snapshot.exists) {
+        final data = snapshot.value as Map<dynamic, dynamic>;
+        setState(() {
+          _hargaPerKubik = _toInt(data['harga']);
+          _jenisTarif = data['nama']?.toString() ?? '';
+        });
+        return;
+      }
+    }
+
+    // Kalau tidak ada tarif_key atau datanya tidak ditemukan → ambil harga default dari tarif pertama
+    final allTarifSnap = await ref.get();
+    if (allTarifSnap.exists) {
+      final allTarif = allTarifSnap.value as Map<dynamic, dynamic>;
+      final firstTarif = allTarif.entries.first.value as Map<dynamic, dynamic>;
       setState(() {
-        _hargaPerKubik = _toInt(data['harga_per_m3']);
-        _jenisTarif = data['nama']?.toString() ?? '';
+        _hargaPerKubik = _toInt(firstTarif['harga']);
+        _jenisTarif = firstTarif['nama']?.toString() ?? '';
       });
     }
   }
@@ -96,7 +106,6 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
       backgroundColor: Colors.grey[100],
       body: Column(
         children: [
-          // Header Section
           Container(
             decoration: BoxDecoration(
               color: Color(0xFF2196F3),
@@ -149,8 +158,6 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
               ),
             ),
           ),
-
-          // Content
           Expanded(
             child: SingleChildScrollView(
               child: Padding(
@@ -194,8 +201,6 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                               SizedBox(height: 12),
                               _buildInfoField('Stand Awal', _standAwal.toString()),
                               SizedBox(height: 16),
-
-                              // Stand Baru Input
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -232,8 +237,6 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                                 ],
                               ),
                               SizedBox(height: 24),
-
-                              // Rincian Tagihan
                               Container(
                                 width: double.infinity,
                                 decoration: BoxDecoration(
@@ -273,8 +276,6 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                         ),
                       ),
                       SizedBox(height: 24),
-
-                      // Button
                       Container(
                         width: double.infinity,
                         height: 50,
