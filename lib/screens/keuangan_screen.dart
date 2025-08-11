@@ -245,201 +245,41 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
   Future<void> _exportExcel() async {
     final excel.Excel excelFile = excel.Excel.createExcel();
     
-    // ============ PERBAIKAN 1: Style untuk Header ============
-    final headerStyle = excel.CellStyle(
-      backgroundColorHex: '#2196F3',
-      fontColorHex: '#FFFFFF',
-      bold: true,
-      horizontalAlign: excel.HorizontalAlign.Center,
-      verticalAlign: excel.VerticalAlign.Center,
-    );
-    
-    final dataStyle = excel.CellStyle(
-      horizontalAlign: excel.HorizontalAlign.Left,
-      verticalAlign: excel.VerticalAlign.Center,
-    );
-    
-    final numberStyle = excel.CellStyle(
-      horizontalAlign: excel.HorizontalAlign.Right,
-      verticalAlign: excel.VerticalAlign.Center,
-    );
-
-    // ============ PERBAIKAN 2: Pendapatan Sheet dengan Styling ============
+    // Pendapatan Sheet
     excel.Sheet pendSheet = excelFile['Pendapatan'];
-    excelFile.delete('Sheet1'); // Hapus sheet default
-    
-    // Header dengan style
-    var headerRow = ['No', 'Pelanggan ID', 'Nominal', 'Tanggal'];
-    for (int i = 0; i < headerRow.length; i++) {
-      var cell = pendSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
-      cell.value = headerRow[i];
-      cell.cellStyle = headerStyle;
+    pendSheet.appendRow(['ID', 'Nominal', 'Pelanggan ID', 'Tanggal']);
+    for (var item in pendapatan) {
+      pendSheet.appendRow([
+        item.id,
+        item.nominal,
+        item.pelangganId ?? '',
+        _formatTanggal(item.tanggal),
+      ]);
     }
-    
-    // Data dengan nomor urut dan format currency
-    for (int i = 0; i < pendapatan.length; i++) {
-      var item = pendapatan[i];
-      int row = i + 1;
-      
-      // No urut
-      var noCell = pendSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row));
-      noCell.value = i + 1;
-      noCell.cellStyle = numberStyle;
-      
-      // Pelanggan ID
-      var pelangganCell = pendSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row));
-      pelangganCell.value = item.pelangganId ?? '-';
-      pelangganCell.cellStyle = dataStyle;
-      
-      // Nominal dengan format Rupiah
-      var nominalCell = pendSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row));
-      nominalCell.value = 'Rp ${_formatNumber(item.nominal)}';
-      nominalCell.cellStyle = numberStyle;
-      
-      // Tanggal
-      var tanggalCell = pendSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row));
-      tanggalCell.value = _formatTanggal(item.tanggal);
-      tanggalCell.cellStyle = dataStyle;
-    }
-    
-    // ============ PERBAIKAN 3: Tambah baris kosong untuk spacing ============
 
-    // ============ PERBAIKAN 4: Pemasukkan Sheet dengan Styling ============
+    // Pemasukkan Sheet
     excel.Sheet masukSheet = excelFile['Pemasukkan'];
-    
-    headerRow = ['No', 'Judul', 'Nominal', 'Tanggal'];
-    for (int i = 0; i < headerRow.length; i++) {
-      var cell = masukSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
-      cell.value = headerRow[i];
-      cell.cellStyle = headerStyle;
+    masukSheet.appendRow(['ID', 'Nominal', 'Judul', 'Tanggal']);
+    for (var item in pemasukkan) {
+      masukSheet.appendRow([
+        item.id,
+        item.nominal,
+        item.judul,
+        _formatTanggal(item.tanggal),
+      ]);
     }
-    
-    for (int i = 0; i < pemasukkan.length; i++) {
-      var item = pemasukkan[i];
-      int row = i + 1;
-      
-      var noCell = masukSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row));
-      noCell.value = i + 1;
-      noCell.cellStyle = numberStyle;
-      
-      var judulCell = masukSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row));
-      judulCell.value = item.judul;
-      judulCell.cellStyle = dataStyle;
-      
-      var nominalCell = masukSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row));
-      nominalCell.value = 'Rp ${_formatNumber(item.nominal)}';
-      nominalCell.cellStyle = numberStyle;
-      
-      var tanggalCell = masukSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row));
-      tanggalCell.value = _formatTanggal(item.tanggal);
-      tanggalCell.cellStyle = dataStyle;
-    }
-    
 
-    // ============ PERBAIKAN 5: Pengeluaran Sheet dengan Styling ============
+    // Pengeluaran Sheet
     excel.Sheet keluarSheet = excelFile['Pengeluaran'];
-    
-    headerRow = ['No', 'Judul', 'Nominal', 'Tanggal'];
-    for (int i = 0; i < headerRow.length; i++) {
-      var cell = keluarSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
-      cell.value = headerRow[i];
-      cell.cellStyle = headerStyle;
+    keluarSheet.appendRow(['ID', 'Nominal', 'Judul', 'Tanggal']);
+    for (var item in pengeluaran) {
+      keluarSheet.appendRow([
+        item.id,
+        item.nominal,
+        item.judul,
+        _formatTanggal(item.tanggal),
+      ]);
     }
-    
-    for (int i = 0; i < pengeluaran.length; i++) {
-      var item = pengeluaran[i];
-      int row = i + 1;
-      
-      var noCell = keluarSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row));
-      noCell.value = i + 1;
-      noCell.cellStyle = numberStyle;
-      
-      var judulCell = keluarSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row));
-      judulCell.value = item.judul;
-      judulCell.cellStyle = dataStyle;
-      
-      var nominalCell = keluarSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row));
-      nominalCell.value = 'Rp ${_formatNumber(item.nominal)}';
-      nominalCell.cellStyle = numberStyle;
-      
-      var tanggalCell = keluarSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row));
-      tanggalCell.value = _formatTanggal(item.tanggal);
-      tanggalCell.cellStyle = dataStyle;
-    }
-    
-
-    // ============ PERBAIKAN 6: Sheet Ringkasan ============
-    excel.Sheet ringkasanSheet = excelFile['Ringkasan'];
-    
-    // Header ringkasan
-    var ringkasanCell = ringkasanSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0));
-    ringkasanCell.value = 'RINGKASAN KEUANGAN';
-    ringkasanCell.cellStyle = excel.CellStyle(
-      backgroundColorHex: '#FFD700',
-      fontColorHex: '#000000',
-      bold: true,
-      fontSize: 16,
-      horizontalAlign: excel.HorizontalAlign.Center,
-    );
-    
-    // Total Pendapatan
-    int totalPendapatan = pendapatan.fold(0, (sum, item) => sum + item.nominal);
-    var pendapatanLabelCell = ringkasanSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2));
-    pendapatanLabelCell.value = 'Total Pendapatan:';
-    pendapatanLabelCell.cellStyle = excel.CellStyle(bold: true);
-    
-    var pendapatanValueCell = ringkasanSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 2));
-    pendapatanValueCell.value = 'Rp ${_formatNumber(totalPendapatan)}';
-    pendapatanValueCell.cellStyle = excel.CellStyle(
-      backgroundColorHex: '#E8F5E8',
-      horizontalAlign: excel.HorizontalAlign.Right,
-    );
-    
-    // Total Pemasukkan
-    int totalPemasukkan = pemasukkan.fold(0, (sum, item) => sum + item.nominal);
-    var pemasukkanLabelCell = ringkasanSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 3));
-    pemasukkanLabelCell.value = 'Total Pemasukkan:';
-    pemasukkanLabelCell.cellStyle = excel.CellStyle(bold: true);
-    
-    var pemasukkanValueCell = ringkasanSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 3));
-    pemasukkanValueCell.value = 'Rp ${_formatNumber(totalPemasukkan)}';
-    pemasukkanValueCell.cellStyle = excel.CellStyle(
-      backgroundColorHex: '#E8F5E8',
-      horizontalAlign: excel.HorizontalAlign.Right,
-    );
-    
-    // Total Pengeluaran
-    int totalPengeluaran = pengeluaran.fold(0, (sum, item) => sum + item.nominal);
-    var pengeluaranLabelCell = ringkasanSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 4));
-    pengeluaranLabelCell.value = 'Total Pengeluaran:';
-    pengeluaranLabelCell.cellStyle = excel.CellStyle(bold: true);
-    
-    var pengeluaranValueCell = ringkasanSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 4));
-    pengeluaranValueCell.value = 'Rp ${_formatNumber(totalPengeluaran)}';
-    pengeluaranValueCell.cellStyle = excel.CellStyle(
-      backgroundColorHex: '#FFE8E8',
-      horizontalAlign: excel.HorizontalAlign.Right,
-    );
-    
-    // Saldo Bersih
-    int saldoBersih = totalPendapatan + totalPemasukkan - totalPengeluaran;
-    var saldoLabelCell = ringkasanSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 6));
-    saldoLabelCell.value = 'Saldo Bersih:';
-    saldoLabelCell.cellStyle = excel.CellStyle(
-      bold: true,
-      fontSize: 14,
-      backgroundColorHex: '#FFD700',
-    );
-    
-    var saldoValueCell = ringkasanSheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 6));
-    saldoValueCell.value = 'Rp ${_formatNumber(saldoBersih)}';
-    saldoValueCell.cellStyle = excel.CellStyle(
-      bold: true,
-      fontSize: 14,
-      backgroundColorHex: saldoBersih >= 0 ? '#E8F5E8' : '#FFE8E8',
-      horizontalAlign: excel.HorizontalAlign.Right,
-    );
-    
 
     // Simpan ke folder Documents umum di Android
     String filePath;
@@ -469,14 +309,6 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
         );
       }
     }
-  }
-
-  // ============ PERBAIKAN 7: Fungsi Helper untuk Format Number ============
-  String _formatNumber(int number) {
-    return number.toString().replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]}.',
-    );
   }
 
   @override
