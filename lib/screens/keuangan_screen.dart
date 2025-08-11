@@ -7,19 +7,34 @@ import 'package:path_provider/path_provider.dart';
 // Data model
 class KeuanganItem {
   final String id;
-  final int nominal;
-  final String judul;
+  // Only for pendapatan
+  final String pelangganId;
+  final String pelangganNama;
+  final int pembayaran;
+  final int standAwal;
+  final int standAkhir;
+  final int terhutang;
+  final int totalTagihan;
+  // Common
   final String tanggal;
   final String kategori; // "pendapatan", "pemasukkan", "pengeluaran"
-  final String? pelangganId; // hanya pendapatan
+  // Only for pemasukkan/pengeluaran
+  final String judul;
+  final int nominal;
 
   KeuanganItem({
     required this.id,
-    required this.nominal,
-    required this.judul,
-    required this.tanggal,
-    required this.kategori,
-    this.pelangganId,
+    this.pelangganId = '',
+    this.pelangganNama = '',
+    this.pembayaran = 0,
+    this.standAwal = 0,
+    this.standAkhir = 0,
+    this.terhutang = 0,
+    this.totalTagihan = 0,
+    this.tanggal = '',
+    this.kategori = '',
+    this.judul = '',
+    this.nominal = 0,
   });
 }
 
@@ -46,6 +61,10 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
     setState(() => _loading = true);
 
     try {
+      final now = DateTime.now();
+      final bulanIni = now.month;
+      final tahunIni = now.year;
+
       // Ambil Pendapatan dari pembayaran
       final pembayaranSnap = await FirebaseDatabase.instance.ref('pembayaran').get();
       pendapatan = [];
@@ -53,15 +72,40 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
         final data = Map<dynamic, dynamic>.from(pembayaranSnap.value as Map);
         pendapatan = data.entries.map((e) {
           final item = Map<dynamic, dynamic>.from(e.value);
+          final tanggalStr = item['tanggal'] ?? '';
+          DateTime? tgl;
+          try {
+            tgl = DateTime.parse(tanggalStr);
+          } catch (_) {}
           return KeuanganItem(
             id: e.key,
-            nominal: item['pembayaran'] ?? 0,
-            judul: item['pelanggan_id']?.toString() ?? '',
-            tanggal: item['tanggal'] ?? '',
+            pelangganId: item['pelanggan_id']?.toString() ?? '',
+            pelangganNama: item['pelanggan_nama']?.toString() ?? '',
+            pembayaran: (item['pembayaran'] ?? 0) is int
+                ? (item['pembayaran'] ?? 0)
+                : int.tryParse(item['pembayaran'].toString()) ?? 0,
+            standAwal: (item['stand_awal'] ?? 0) is int
+                ? (item['stand_awal'] ?? 0)
+                : int.tryParse(item['stand_awal'].toString()) ?? 0,
+            standAkhir: (item['stand_baru'] ?? 0) is int
+                ? (item['stand_baru'] ?? 0)
+                : int.tryParse(item['stand_baru'].toString()) ?? 0,
+            terhutang: (item['terhutang'] ?? 0) is int
+                ? (item['terhutang'] ?? 0)
+                : int.tryParse(item['terhutang'].toString()) ?? 0,
+            totalTagihan: (item['total_tagihan'] ?? 0) is int
+                ? (item['total_tagihan'] ?? 0)
+                : int.tryParse(item['total_tagihan'].toString()) ?? 0,
+            tanggal: tanggalStr,
             kategori: 'pendapatan',
-            pelangganId: item['pelanggan_id']?.toString(),
           );
-        }).where((item) => item.nominal > 0).toList();
+        }).where((item) {
+          DateTime? tgl;
+          try {
+            tgl = DateTime.parse(item.tanggal);
+          } catch (_) {}
+          return item.pembayaran > 0 && tgl != null && tgl.month == bulanIni && tgl.year == tahunIni;
+        }).toList();
       }
 
       // Ambil Pemasukkan
@@ -71,13 +115,24 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
         final data = Map<dynamic, dynamic>.from(pemasukkanSnap.value as Map);
         pemasukkan = data.entries.map((e) {
           final item = Map<dynamic, dynamic>.from(e.value);
+          final tanggalStr = item['tanggal'] ?? '';
+          DateTime? tgl;
+          try {
+            tgl = DateTime.parse(tanggalStr);
+          } catch (_) {}
           return KeuanganItem(
             id: e.key,
-            nominal: item['nominal'] ?? 0,
-            judul: item['judul'] ?? '',
-            tanggal: item['tanggal'] ?? '',
             kategori: 'pemasukkan',
+            judul: item['judul'] ?? '',
+            nominal: item['nominal'] ?? 0,
+            tanggal: tanggalStr,
           );
+        }).where((item) {
+          DateTime? tgl;
+          try {
+            tgl = DateTime.parse(item.tanggal);
+          } catch (_) {}
+          return tgl != null && tgl.month == bulanIni && tgl.year == tahunIni;
         }).toList();
       }
 
@@ -88,13 +143,24 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
         final data = Map<dynamic, dynamic>.from(pengeluaranSnap.value as Map);
         pengeluaran = data.entries.map((e) {
           final item = Map<dynamic, dynamic>.from(e.value);
+          final tanggalStr = item['tanggal'] ?? '';
+          DateTime? tgl;
+          try {
+            tgl = DateTime.parse(tanggalStr);
+          } catch (_) {}
           return KeuanganItem(
             id: e.key,
-            nominal: item['nominal'] ?? 0,
-            judul: item['judul'] ?? '',
-            tanggal: item['tanggal'] ?? '',
             kategori: 'pengeluaran',
+            judul: item['judul'] ?? '',
+            nominal: item['nominal'] ?? 0,
+            tanggal: tanggalStr,
           );
+        }).where((item) {
+          DateTime? tgl;
+          try {
+            tgl = DateTime.parse(item.tanggal);
+          } catch (_) {}
+          return tgl != null && tgl.month == bulanIni && tgl.year == tahunIni;
         }).toList();
       }
     } catch (e) {
@@ -106,153 +172,33 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
     setState(() => _loading = false);
   }
 
-  Future<void> _tambahTransaksi(String kategori) async {
-  String judul = '';
-  int nominal = 0;
-  DateTime? tanggal;
-
-  await showModalBottomSheet(
-    context: context,
-    isScrollControlled: true, // biar tinggi mengikuti konten
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    backgroundColor: Colors.white,
-    builder: (context) {
-      final _judulController = TextEditingController();
-      final _nominalController = TextEditingController();
-      DateTime selectedDate = DateTime.now();
-
-      return Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          left: 20,
-          right: 20,
-          top: 20,
-        ),
-        child: StatefulBuilder(
-          builder: (context, setStateDialog) => Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Tambah $kategori',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF2196F3),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _judulController,
-                decoration: const InputDecoration(
-                  labelText: 'Judul',
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFF2196F3)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _nominalController,
-                decoration: const InputDecoration(
-                  labelText: 'Nominal',
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFF2196F3)),
-                  ),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      "Tanggal: ${_formatTanggal(selectedDate.toIso8601String())}",
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: selectedDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2100),
-                      );
-                      if (picked != null) {
-                        setStateDialog(() {
-                          selectedDate = picked;
-                        });
-                      }
-                    },
-                    child: const Text(
-                      'Pilih Tanggal',
-                      style: TextStyle(
-                        color: Color(0xFF2196F3),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Batal', style: TextStyle(color: Color(0xFF2196F3))),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () async {
-                      judul = _judulController.text;
-                      nominal = int.tryParse(_nominalController.text) ?? 0;
-                      tanggal = selectedDate;
-                      Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2196F3),
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('Simpan'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        ),
-      );
-    },
-  );
-
-  // Simpan transaksi jika valid
-  if (judul.isNotEmpty && nominal > 0 && tanggal != null) {
-    final idTransaksi = DateTime.now().millisecondsSinceEpoch.toString();
-    await FirebaseDatabase.instance.ref('$kategori/$idTransaksi').set({
-      'judul': judul,
-      'nominal': nominal,
-      'tanggal': tanggal!.toIso8601String(),
-    });
-    _loadKeuangan();
-  }
-}
-
-
   Future<void> _exportExcel() async {
     final excel.Excel excelFile = excel.Excel.createExcel();
-    
-    // Pendapatan Sheet
+
+    // Pendapatan Sheet (histori pembayaran)
     excel.Sheet pendSheet = excelFile['Pendapatan'];
-    pendSheet.appendRow(['ID', 'Nominal', 'Pelanggan ID', 'Tanggal']);
-    for (var item in pendapatan) {
+    pendSheet.appendRow([
+      'No',
+      'ID Pelanggan',
+      'Nama Pelanggan',
+      'Pembayaran',
+      'Stand Awal',
+      'Stand Akhir',
+      'Terhutang',
+      'Total Tagihan',
+      'Tanggal'
+    ]);
+    for (int i = 0; i < pendapatan.length; i++) {
+      var item = pendapatan[i];
       pendSheet.appendRow([
-        item.id,
-        item.nominal,
-        item.pelangganId ?? '',
+        i + 1,
+        item.pelangganId,
+        item.pelangganNama,
+        item.pembayaran,
+        item.standAwal,
+        item.standAkhir,
+        item.terhutang,
+        item.totalTagihan,
         _formatTanggal(item.tanggal),
       ]);
     }
@@ -322,11 +268,11 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    _buildSection('Pendapatan', pendapatan),
+                    _buildSection('Pendapatan', pendapatan, isPendapatan: true),
                     const SizedBox(height: 16),
-                    _buildSection('Pemasukkan', pemasukkan, action: () => _tambahTransaksi('pemasukkan')),
+                    _buildSection('Pemasukkan', pemasukkan, isPendapatan: false, action: () => _tambahTransaksi('pemasukkan')),
                     const SizedBox(height: 16),
-                    _buildSection('Pengeluaran', pengeluaran, action: () => _tambahTransaksi('pengeluaran')),
+                    _buildSection('Pengeluaran', pengeluaran, isPendapatan: false, action: () => _tambahTransaksi('pengeluaran')),
                   ],
                 ),
               ),
@@ -340,7 +286,9 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
     );
   }
 
-  Widget _buildSection(String title, List<KeuanganItem> items, {VoidCallback? action}) {
+  Widget _buildSection(String title, List<KeuanganItem> items, {bool isPendapatan = false, VoidCallback? action}) {
+    // PENTING: Hanya tampilkan info ringkas di aplikasi,
+    // data detail (stand, pembayaran, terhutang, dll) hanya untuk export!
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -401,14 +349,24 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            item.judul.isNotEmpty ? item.judul : (item.pelangganId ?? '-'),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF2196F3),
+                          if (isPendapatan)
+                            Text(
+                              "${item.pelangganNama} (${item.pelangganId})",
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF2196F3),
+                              ),
                             ),
-                          ),
+                          if (!isPendapatan)
+                            Text(
+                              item.judul,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF2196F3),
+                              ),
+                            ),
                           Text(
                             _formatTanggal(item.tanggal),
                             style: const TextStyle(
@@ -416,11 +374,12 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
                               color: Colors.grey,
                             ),
                           ),
+                          // Tidak menampilkan data detail seperti pembayaran, stand, terhutang, total_tagihan, dsb di UI aplikasi
                         ],
                       ),
                     ),
                     Text(
-                      'Rp ${item.nominal}',
+                      isPendapatan ? 'Rp ${item.pembayaran}' : 'Rp ${item.nominal}',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -442,6 +401,141 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
       return "${date.day}/${date.month}/${date.year}";
     } catch (e) {
       return isoString?.toString() ?? '-';
+    }
+  }
+
+  Future<void> _tambahTransaksi(String kategori) async {
+    String judul = '';
+    int nominal = 0;
+    DateTime? tanggal;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      backgroundColor: Colors.white,
+      builder: (context) {
+        final _judulController = TextEditingController();
+        final _nominalController = TextEditingController();
+        DateTime selectedDate = DateTime.now();
+
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 20,
+            right: 20,
+            top: 20,
+          ),
+          child: StatefulBuilder(
+            builder: (context, setStateDialog) => Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Tambah $kategori',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2196F3),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _judulController,
+                  decoration: const InputDecoration(
+                    labelText: 'Judul',
+                    focusedBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Color(0xFF2196F3)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _nominalController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nominal',
+                    focusedBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Color(0xFF2196F3)),
+                    ),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        "Tanggal: ${_formatTanggal(selectedDate.toIso8601String())}",
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked != null) {
+                          setStateDialog(() {
+                            selectedDate = picked;
+                          });
+                        }
+                      },
+                      child: const Text(
+                        'Pilih Tanggal',
+                        style: TextStyle(
+                          color: Color(0xFF2196F3),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Batal', style: TextStyle(color: Color(0xFF2196F3))),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () async {
+                        judul = _judulController.text;
+                        nominal = int.tryParse(_nominalController.text) ?? 0;
+                        tanggal = selectedDate;
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2196F3),
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Simpan'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    // Simpan transaksi jika valid
+    if (judul.isNotEmpty && nominal > 0 && tanggal != null) {
+      final idTransaksi = DateTime.now().millisecondsSinceEpoch.toString();
+      await FirebaseDatabase.instance.ref('$kategori/$idTransaksi').set({
+        'judul': judul,
+        'nominal': nominal,
+        'tanggal': tanggal!.toIso8601String(),
+      });
+      _loadKeuangan();
     }
   }
 }
