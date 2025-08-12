@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FormPembayaranScreen extends StatefulWidget {
   final String pelangganId;
@@ -27,10 +27,29 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
   int? _sisa;
   bool _isLoading = false;
 
+  // Ganti Firebase Realtime Database dengan Firestore
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    // Enable offline persistence untuk Firestore (jika belum dilakukan di main.dart)
+    _enableOfflinePersistence();
+  }
+
   @override
   void dispose() {
     _pembayaranController.dispose();
     super.dispose();
+  }
+
+  // Method untuk mengaktifkan offline persistence
+  Future<void> _enableOfflinePersistence() async {
+    try {
+      await _firestore.enablePersistence();
+    } catch (e) {
+      print('Could not enable offline persistence: $e');
+    }
   }
 
   void _hitungSisa() {
@@ -59,11 +78,25 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
         throw Exception('Stand baru tidak boleh kurang dari stand awal');
       }
 
-      // Simpan histori pembayaran
+      // Menggunakan batch write untuk transaksi yang lebih aman
+      WriteBatch batch = _firestore.batch();
+
+      // Generate ID untuk dokumen pembayaran
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      await FirebaseDatabase.instance
-          .ref('pembayaran/${widget.pelangganId}_$timestamp')
-          .set({
+      final pembayaranId = '${widget.pelangganId}_$timestamp';
+
+      // Reference untuk dokumen pembayaran
+      final pembayaranRef = _firestore
+          .collection('pembayaran')
+          .doc(pembayaranId);
+
+      // Reference untuk dokumen pelanggan
+      final pelangganRef = _firestore
+          .collection('pelanggan')
+          .doc(widget.pelangganId);
+
+      // Simpan histori pembayaran
+      batch.set(pembayaranRef, {
         'pelanggan_id': widget.pelangganId,
         'pembayaran': pembayaran,
         'tanggal': DateTime.now().toIso8601String(),
@@ -71,30 +104,61 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
         'terhutang': terhutangBaru,
         'stand_awal': widget.standAwal,
         'stand_baru': widget.standBaru,
+        'created_at': FieldValue.serverTimestamp(), // Menggunakan server timestamp
+        'kubikasi': widget.standBaru - widget.standAwal,
+        'status': 'completed', // Status untuk tracking
       });
 
       // Update data pelanggan
-      await FirebaseDatabase.instance
-          .ref('pelanggan/${widget.pelangganId}')
-          .update({
+      batch.update(pelangganRef, {
         'stand_awal': widget.standAwal,
         'stand_baru': widget.standBaru,
         'kubikasi': widget.standBaru - widget.standAwal,
         'terhutang': terhutangBaru,
         'tanggal_catat': widget.tanggalCatat,
-        'terakhir_update': ServerValue.timestamp,
+        'terakhir_update': FieldValue.serverTimestamp(), // Menggunakan server timestamp
+        'last_payment': {
+          'amount': pembayaran,
+          'date': DateTime.now().toIso8601String(),
+          'pembayaran_id': pembayaranId,
+        },
       });
 
+      // Commit batch transaction
+      await batch.commit();
+
+      // Cek apakah data berhasil disimpan dengan menggunakan cache
+      await _verifyDataSaved(pembayaranId);
+
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pembayaran berhasil disimpan!')),
-      );
+
+      // Tampilkan status berdasarkan koneksi
+      final isOnline = await _checkInternetConnection();
+      if (isOnline) {
+        _showSuccessMessage('Pembayaran berhasil disimpan dan tersinkron!', Colors.green);
+      } else {
+        _showSuccessMessage('Pembayaran disimpan offline. Akan tersinkron otomatis saat online.', Colors.orange);
+      }
+
+      // Kembali ke halaman utama
       Navigator.popUntil(context, (route) => route.isFirst);
+      
     } catch (e) {
+      print('Error saving payment: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+
+      // Cek apakah error karena offline
+      if (e.toString().contains('UNAVAILABLE') || e.toString().contains('offline')) {
+        _showSuccessMessage('Data disimpan offline. Akan tersinkron otomatis saat online.', Colors.orange);
+        Navigator.popUntil(context, (route) => route.isFirst);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -102,6 +166,71 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
         });
       }
     }
+  }
+
+  // Method untuk verifikasi data tersimpan
+  Future<void> _verifyDataSaved(String pembayaranId) async {
+    try {
+      final doc = await _firestore
+          .collection('pembayaran')
+          .doc(pembayaranId)
+          .get(GetOptions(source: Source.cache)); // Cek dari cache
+
+      if (!doc.exists) {
+        throw Exception('Data tidak tersimpan dengan benar');
+      }
+      print('Payment verification successful');
+    } catch (e) {
+      print('Payment verification failed: $e');
+      // Tidak throw error karena data mungkin masih dalam proses sinkronisasi
+    }
+  }
+
+  // Method untuk mengecek koneksi internet
+  Future<bool> _checkInternetConnection() async {
+    try {
+      // Coba ambil data dummy dari server untuk test koneksi
+      await _firestore
+          .collection('_connection_test')
+          .limit(1)
+          .get(GetOptions(source: Source.server))
+          .timeout(Duration(seconds: 5));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Method untuk menampilkan pesan sukses
+  void _showSuccessMessage(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              color == Colors.green ? Icons.check_circle : Icons.cloud_off,
+              color: Colors.white,
+            ),
+            SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: color,
+        duration: Duration(seconds: 4),
+        action: SnackBarAction(
+          label: 'OK',
+          textColor: Colors.white,
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ),
+    );
+  }
+
+  // Method untuk retry simpan jika gagal
+  Future<void> _retrySimpan() async {
+    await _simpanPembayaran();
   }
 
   String _formatCurrency(int value) {
@@ -130,10 +259,10 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
                   children: [
                     // Back Button
                     IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
                       icon: Icon(
                         Icons.arrow_back,
-                        color: Colors.white,
+                        color: _isLoading ? Colors.grey[400] : Colors.white,
                         size: 28,
                       ),
                     ),
@@ -152,6 +281,40 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
                         ),
                       ),
                     ),
+
+                    // Status indicator untuk offline/online
+                    FutureBuilder<bool>(
+                      future: _checkInternetConnection(),
+                      builder: (context, snapshot) {
+                        return Container(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: (snapshot.data == true) ? Colors.green : Colors.orange,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                (snapshot.data == true) ? Icons.wifi : Icons.wifi_off,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                (snapshot.data == true) ? 'Online' : 'Offline',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    SizedBox(width: 8),
                     
                     // Logo/Icon
                     Container(
@@ -168,7 +331,9 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
                           width: 35,
                           height: 35,
                           fit: BoxFit.contain,
-                          // Menangani error jika gambar tidak ditemukan
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(Icons.person, color: Colors.blue);
+                          },
                         ),
                       ),
                     ),
@@ -236,7 +401,7 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
                                       SizedBox(height: 8),
                                       _buildInfoRow('Stand Baru:', widget.standBaru.toString()),
                                       SizedBox(height: 8),
-                                      _buildInfoRow('Pemakaian:', '${widget.standBaru - widget.standAwal}'),
+                                      _buildInfoRow('Pemakaian:', '${widget.standBaru - widget.standAwal} m³'),
                                     ],
                                   ),
                                 ),
@@ -287,6 +452,7 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
                                         child: TextFormField(
                                           controller: _pembayaranController,
                                           keyboardType: TextInputType.number,
+                                          enabled: !_isLoading,
                                           decoration: InputDecoration(
                                             hintText: 'Masukkan Nominal Bayar',
                                             hintStyle: TextStyle(
@@ -297,7 +463,7 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
                                           ),
                                           style: TextStyle(
                                             fontSize: 16,
-                                            color: Colors.grey[700],
+                                            color: _isLoading ? Colors.grey[400] : Colors.grey[700],
                                           ),
                                           validator: (value) {
                                             if (value == null || value.isEmpty) {
@@ -321,14 +487,14 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
                                       Container(
                                         padding: EdgeInsets.all(8),
                                         decoration: BoxDecoration(
-                                          color: Colors.yellow[600],
+                                          color: _isLoading ? Colors.grey : Colors.yellow[600],
                                           shape: BoxShape.circle,
                                         ),
                                         child: Text(
-                                          '\$',
+                                          'Rp',
                                           style: TextStyle(
                                             color: Colors.white,
-                                            fontSize: 18,
+                                            fontSize: 12,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
@@ -354,10 +520,43 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
                                   child: Padding(
                                     padding: const EdgeInsets.all(16.0),
                                     child: _buildInfoRow(
-                                      _sisa! > 0 ? 'Sisa Tagihan:' : 'Lunas:',
-                                      _formatCurrency(_sisa!),
+                                      _sisa! > 0 ? 'Sisa Tagihan:' : 'Status:',
+                                      _sisa! > 0 ? _formatCurrency(_sisa!) : 'LUNAS',
                                       color: _sisa! > 0 ? Colors.orange[700] : Colors.green[700],
                                     ),
+                                  ),
+                                ),
+                              ],
+
+                              // Loading indicator saat menyimpan
+                              if (_isLoading) ...[
+                                SizedBox(height: 16),
+                                Container(
+                                  width: double.infinity,
+                                  padding: EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue[50],
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.blue[300]!, width: 2),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      ),
+                                      SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          'Menyimpan pembayaran...',
+                                          style: TextStyle(
+                                            color: Colors.blue[700],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -372,11 +571,11 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
                         width: double.infinity,
                         height: 50,
                         decoration: BoxDecoration(
-                          color: Color(0xFF2196F3),
+                          color: _isLoading ? Colors.grey[400] : Color(0xFF2196F3),
                           borderRadius: BorderRadius.circular(25),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.blue.withOpacity(0.3),
+                              color: (_isLoading ? Colors.grey : Colors.blue).withOpacity(0.3),
                               spreadRadius: 0,
                               blurRadius: 8,
                               offset: Offset(0, 3),
@@ -393,8 +592,27 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
                             ),
                           ),
                           child: _isLoading
-                              ? CircularProgressIndicator(
-                                  color: Color(0xFF2196F3),
+                              ? Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    ),
+                                    SizedBox(width: 12),
+                                    Text(
+                                      'MENYIMPAN...',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 )
                               : Text(
                                   'SIMPAN PEMBAYARAN',

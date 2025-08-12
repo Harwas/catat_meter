@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'form_pembayaran_screen.dart';
 
 class FormKalkulasiScreen extends StatefulWidget {
-  final Map<dynamic, dynamic> pelanggan;
+  final Map<String, dynamic> pelanggan; // Ubah dari Map<dynamic, dynamic> ke Map<String, dynamic>
   const FormKalkulasiScreen({required this.pelanggan, Key? key}) : super(key: key);
 
   @override
@@ -20,12 +20,19 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
   int _standAwal = 0;
   int _hargaPerKubik = 0;
   String _jenisTarif = '';
+  bool _isLoadingTarif = true;
+
+  // Ganti Firebase Realtime Database dengan Firestore
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   int _toInt(dynamic value) => int.tryParse(value?.toString() ?? '0') ?? 0;
 
   @override
   void initState() {
     super.initState();
+    // Enable offline persistence untuk Firestore (jika belum dilakukan di main.dart)
+    _enableOfflinePersistence();
+    
     _standAwal = _toInt(widget.pelanggan['stand_baru'] ?? widget.pelanggan['stand_awal']);
     _standBaruController.text = _standAwal.toString();
     _terhutangSebelumnya = _toInt(widget.pelanggan['terhutang']);
@@ -35,34 +42,102 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
     });
   }
 
+  // Method untuk mengaktifkan offline persistence
+  Future<void> _enableOfflinePersistence() async {
+    try {
+      await _firestore.enablePersistence();
+    } catch (e) {
+      print('Could not enable offline persistence: $e');
+    }
+  }
+
   Future<void> _loadTarif() async {
-    String? tarifKey = widget.pelanggan['tarif_key'];
+    setState(() => _isLoadingTarif = true);
+    
+    try {
+      String? tarifKey = widget.pelanggan['tarif_key'];
 
-    DatabaseReference ref = FirebaseDatabase.instance.ref().child('tarif');
-
-    if (tarifKey != null) {
-      // Ambil tarif sesuai key
-      final snapshot = await ref.child(tarifKey).get();
-      if (snapshot.exists) {
-        final data = snapshot.value as Map<dynamic, dynamic>;
-        setState(() {
-          _hargaPerKubik = _toInt(data['harga']);
-          _jenisTarif = data['nama']?.toString() ?? '';
-        });
-        return;
+      if (tarifKey != null && tarifKey.isNotEmpty) {
+        // Ambil tarif sesuai key menggunakan Firestore
+        final docSnapshot = await _firestore
+            .collection('tarif')
+            .doc(tarifKey)
+            .get(GetOptions(source: Source.serverAndCache)); // Coba server dulu, fallback ke cache
+        
+        if (docSnapshot.exists) {
+          final data = docSnapshot.data() as Map<String, dynamic>;
+          setState(() {
+            _hargaPerKubik = _toInt(data['harga']);
+            _jenisTarif = data['nama']?.toString() ?? '';
+            _isLoadingTarif = false;
+          });
+          _showDataSource(docSnapshot.metadata.isFromCache);
+          return;
+        }
       }
-    }
 
-    // Kalau tidak ada tarif_key atau datanya tidak ditemukan → ambil harga default dari tarif pertama
-    final allTarifSnap = await ref.get();
-    if (allTarifSnap.exists) {
-      final allTarif = allTarifSnap.value as Map<dynamic, dynamic>;
-      final firstTarif = allTarif.entries.first.value as Map<dynamic, dynamic>;
+      // Kalau tidak ada tarif_key atau datanya tidak ditemukan → ambil harga default dari tarif pertama
+      final querySnapshot = await _firestore
+          .collection('tarif')
+          .limit(1)
+          .get(GetOptions(source: Source.serverAndCache));
+      
+      if (querySnapshot.docs.isNotEmpty) {
+        final firstTarif = querySnapshot.docs.first.data();
+        setState(() {
+          _hargaPerKubik = _toInt(firstTarif['harga']);
+          _jenisTarif = firstTarif['nama']?.toString() ?? '';
+          _isLoadingTarif = false;
+        });
+        _showDataSource(querySnapshot.metadata.isFromCache);
+      } else {
+        // Jika tidak ada data tarif sama sekali
+        setState(() {
+          _hargaPerKubik = 0;
+          _jenisTarif = 'Tarif tidak tersedia';
+          _isLoadingTarif = false;
+        });
+        _showConnectionStatus('Tidak ada data tarif tersedia', Colors.red);
+      }
+    } catch (e) {
+      print('Error loading tarif: $e');
       setState(() {
-        _hargaPerKubik = _toInt(firstTarif['harga']);
-        _jenisTarif = firstTarif['nama']?.toString() ?? '';
+        _hargaPerKubik = 0;
+        _jenisTarif = 'Error loading tarif';
+        _isLoadingTarif = false;
       });
+      _showConnectionStatus('Error loading tarif', Colors.red);
     }
+  }
+
+  // Method untuk menampilkan sumber data (cache atau server)
+  void _showDataSource(bool isFromCache) {
+    if (isFromCache) {
+      print('Tarif data dari cache (offline)');
+      _showConnectionStatus('Offline - Data tarif dari cache', Colors.orange);
+    } else {
+      print('Tarif data dari server (online)');
+      _showConnectionStatus('Online - Data tarif terbaru', Colors.green);
+    }
+  }
+
+  // Method untuk menampilkan status koneksi
+  void _showConnectionStatus(String message, Color color) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: color,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  // Method untuk refresh tarif secara manual
+  Future<void> _refreshTarif() async {
+    await _loadTarif();
+    _hitungKubikasi();
   }
 
   void _hitungKubikasi() {
@@ -136,8 +211,23 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                         ),
                       ),
                     ),
+                    // Tambahkan refresh button untuk tarif
+                    IconButton(
+                      onPressed: _isLoadingTarif ? null : _refreshTarif,
+                      icon: _isLoadingTarif 
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Icon(Icons.refresh, color: Colors.white, size: 24),
+                      tooltip: 'Refresh Tarif',
+                    ),
                     Container(
-                      margin: const EdgeInsets.only(right: 16),
+                      margin: const EdgeInsets.only(right: 8),
                       width: 40,
                       height: 40,
                       decoration: const BoxDecoration(
@@ -197,7 +287,7 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                               SizedBox(height: 16),
                               _buildInfoField('ID', widget.pelanggan['id']?.toString() ?? ''),
                               SizedBox(height: 12),
-                              _buildInfoField('Tarif', _jenisTarif),
+                              _buildInfoField('Tarif', _isLoadingTarif ? 'Memuat...' : _jenisTarif),
                               SizedBox(height: 12),
                               _buildInfoField('Stand Awal', _standAwal.toString()),
                               SizedBox(height: 16),
@@ -249,13 +339,27 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        'Rincian Tagihan',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.blue[600],
-                                        ),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'Rincian Tagihan',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.blue[600],
+                                            ),
+                                          ),
+                                          if (_isLoadingTarif)
+                                            SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue[600]!),
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                       SizedBox(height: 16),
                                       _buildBillingRow('Pemakaian', '$_kubikasi m³'),
@@ -280,21 +384,44 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: _lanjutPembayaran,
+                          onPressed: _isLoadingTarif ? null : _lanjutPembayaran,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFF2196F3),
+                            backgroundColor: _isLoadingTarif ? Colors.grey : Color(0xFF2196F3),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(25),
                             ),
                           ),
-                          child: Text(
-                            'Lanjut ke Pembayaran',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          child: _isLoadingTarif
+                              ? Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    ),
+                                    SizedBox(width: 12),
+                                    Text(
+                                      'Memuat Tarif...',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  'Lanjut ke Pembayaran',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                         ),
                       ),
                       SizedBox(height: 20),
