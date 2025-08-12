@@ -27,19 +27,29 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
   int? _sisa;
   bool _isLoading = false;
 
-  // Firestore instance
+  // Ganti Firebase Realtime Database dengan Firestore
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
-    // TIDAK perlu _enableOfflinePersistence() di sini jika sudah di-setup di main.dart
+    // Enable offline persistence untuk Firestore (jika belum dilakukan di main.dart)
+    _enableOfflinePersistence();
   }
 
   @override
   void dispose() {
     _pembayaranController.dispose();
     super.dispose();
+  }
+
+  // Method untuk mengaktifkan offline persistence
+  Future<void> _enableOfflinePersistence() async {
+    try {
+      await _firestore.enablePersistence();
+    } catch (e) {
+      print('Could not enable offline persistence: $e');
+    }
   }
 
   void _hitungSisa() {
@@ -49,24 +59,6 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
     setState(() {
       _sisa = sisa;
     });
-  }
-
-  // Method untuk mendapatkan nama pelanggan dari Firestore
-  Future<String> _getNamaPelanggan() async {
-    try {
-      final doc = await _firestore
-          .collection('pelanggan')
-          .doc(widget.pelangganId)
-          .get();
-      
-      if (doc.exists && doc.data() != null) {
-        return doc.data()!['nama'] ?? 'Unknown';
-      }
-      return 'Unknown';
-    } catch (e) {
-      print('Error getting pelanggan name: $e');
-      return 'Unknown';
-    }
   }
 
   Future<void> _simpanPembayaran() async {
@@ -86,41 +78,45 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
         throw Exception('Stand baru tidak boleh kurang dari stand awal');
       }
 
+      // Menggunakan batch write untuk transaksi yang lebih aman
+      WriteBatch batch = _firestore.batch();
+
       // Generate ID untuk dokumen pembayaran
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final pembayaranId = '${widget.pelangganId}_$timestamp';
 
-      // Ambil nama pelanggan terlebih dahulu
-      final namaPelanggan = await _getNamaPelanggan();
-      
-      print('Saving payment data...');
+      // Reference untuk dokumen pembayaran
+      final pembayaranRef = _firestore
+          .collection('pembayaran')
+          .doc(pembayaranId);
 
-      // Simpan histori pembayaran terlebih dahulu
-      await _firestore.collection('pembayaran').doc(pembayaranId).set({
+      // Reference untuk dokumen pelanggan
+      final pelangganRef = _firestore
+          .collection('pelanggan')
+          .doc(widget.pelangganId);
+
+      // Simpan histori pembayaran
+      batch.set(pembayaranRef, {
         'pelanggan_id': widget.pelangganId,
-        'pelanggan_nama': namaPelanggan,
         'pembayaran': pembayaran,
         'tanggal': DateTime.now().toIso8601String(),
         'total_tagihan': widget.totalTagihan,
         'terhutang': terhutangBaru,
         'stand_awal': widget.standAwal,
         'stand_baru': widget.standBaru,
-        'created_at': FieldValue.serverTimestamp(),
+        'created_at': FieldValue.serverTimestamp(), // Menggunakan server timestamp
         'kubikasi': widget.standBaru - widget.standAwal,
-        'status': 'completed',
-        'offline_created': true, // Flag untuk tracking offline creation
+        'status': 'completed', // Status untuk tracking
       });
 
-      print('Payment document saved: $pembayaranId');
-
       // Update data pelanggan
-      await _firestore.collection('pelanggan').doc(widget.pelangganId).update({
+      batch.update(pelangganRef, {
         'stand_awal': widget.standAwal,
         'stand_baru': widget.standBaru,
         'kubikasi': widget.standBaru - widget.standAwal,
         'terhutang': terhutangBaru,
         'tanggal_catat': widget.tanggalCatat,
-        'terakhir_update': FieldValue.serverTimestamp(),
+        'terakhir_update': FieldValue.serverTimestamp(), // Menggunakan server timestamp
         'last_payment': {
           'amount': pembayaran,
           'date': DateTime.now().toIso8601String(),
@@ -128,11 +124,15 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
         },
       });
 
-      print('Pelanggan document updated: ${widget.pelangganId}');
+      // Commit batch transaction
+      await batch.commit();
+
+      // Cek apakah data berhasil disimpan dengan menggunakan cache
+      await _verifyDataSaved(pembayaranId);
 
       if (!mounted) return;
 
-      // Cek status koneksi untuk menentukan pesan
+      // Tampilkan status berdasarkan koneksi
       final isOnline = await _checkInternetConnection();
       if (isOnline) {
         _showSuccessMessage('Pembayaran berhasil disimpan dan tersinkron!', Colors.green);
@@ -140,23 +140,24 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
         _showSuccessMessage('Pembayaran disimpan offline. Akan tersinkron otomatis saat online.', Colors.orange);
       }
 
-      // Kembali ke halaman utama setelah delay singkat
-      await Future.delayed(Duration(milliseconds: 1500));
-      if (mounted) {
-        Navigator.popUntil(context, (route) => route.isFirst);
-      }
+      // Kembali ke halaman utama
+      Navigator.popUntil(context, (route) => route.isFirst);
       
     } catch (e) {
       print('Error saving payment: $e');
       if (!mounted) return;
 
-      // Untuk offline, Firestore akan otomatis menyimpan ke cache
-      // dan sync saat online kembali
-      _showSuccessMessage('Pembayaran disimpan offline. Akan tersinkron saat online kembali.', Colors.orange);
-      
-      await Future.delayed(Duration(milliseconds: 1500));
-      if (mounted) {
+      // Cek apakah error karena offline
+      if (e.toString().contains('UNAVAILABLE') || e.toString().contains('offline')) {
+        _showSuccessMessage('Data disimpan offline. Akan tersinkron otomatis saat online.', Colors.orange);
         Navigator.popUntil(context, (route) => route.isFirst);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } finally {
       if (mounted) {
@@ -167,18 +168,35 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
     }
   }
 
-  // Method untuk mengecek koneksi internet yang lebih sederhana
+  // Method untuk verifikasi data tersimpan
+  Future<void> _verifyDataSaved(String pembayaranId) async {
+    try {
+      final doc = await _firestore
+          .collection('pembayaran')
+          .doc(pembayaranId)
+          .get(GetOptions(source: Source.cache)); // Cek dari cache
+
+      if (!doc.exists) {
+        throw Exception('Data tidak tersimpan dengan benar');
+      }
+      print('Payment verification successful');
+    } catch (e) {
+      print('Payment verification failed: $e');
+      // Tidak throw error karena data mungkin masih dalam proses sinkronisasi
+    }
+  }
+
+  // Method untuk mengecek koneksi internet
   Future<bool> _checkInternetConnection() async {
     try {
-      // Coba buat dokumen test untuk cek koneksi
+      // Coba ambil data dummy dari server untuk test koneksi
       await _firestore
-          .collection('_test')
-          .doc('connection_test')
-          .set({'test': true}, SetOptions(merge: true))
-          .timeout(Duration(seconds: 3));
+          .collection('_connection_test')
+          .limit(1)
+          .get(GetOptions(source: Source.server))
+          .timeout(Duration(seconds: 5));
       return true;
     } catch (e) {
-      print('Connection test failed: $e');
       return false;
     }
   }
@@ -208,6 +226,11 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
         ),
       ),
     );
+  }
+
+  // Method untuk retry simpan jika gagal
+  Future<void> _retrySimpan() async {
+    await _simpanPembayaran();
   }
 
   String _formatCurrency(int value) {
