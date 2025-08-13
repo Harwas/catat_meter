@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'pelanggan_screen.dart';
 import 'pencatatan_screen.dart';
 import 'keuangan_screen.dart';
@@ -42,23 +43,19 @@ class _HomeScreenState extends State<HomeScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
-            Container(
+            SizedBox(
               width: 24,
               height: 24,
-              child: Icon(
-                icon,
-                color: Colors.white,
-                size: 24,
-              ),
+              child: Icon(icon, color: Colors.white, size: 24),
             ),
-            SizedBox(width: 16),
+            const SizedBox(width: 16),
             Expanded(
               child: Text(
                 title,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.w400,
@@ -97,6 +94,23 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           centerTitle: true,
           actions: [
+            // Indikator koneksi online/offline
+            StreamBuilder(
+              stream:
+                  FirebaseDatabase.instance.ref(".info/connected").onValue,
+              builder: (context, snapshot) {
+                bool online =
+                    snapshot.data?.snapshot.value as bool? ?? false;
+                return Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Icon(
+                    online ? Icons.wifi : Icons.wifi_off,
+                    color: online ? Colors.green : Colors.red,
+                    size: 28,
+                  ),
+                );
+              },
+            ),
             Container(
               margin: const EdgeInsets.only(right: 16),
               width: 40,
@@ -105,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: Colors.yellow,
                 shape: BoxShape.circle,
               ),
-              child: ClipOval( // biar gambar ikut bentuk lingkaran
+              child: ClipOval(
                 child: Image.asset(
                   'assets/images/PROFIL.PNG',
                   fit: BoxFit.cover,
@@ -117,23 +131,22 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       drawer: Drawer(
         child: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Color(0xFF42A5F5), // Light blue at top
-                Color(0xFF2196F3), // Main blue
+                Color(0xFF42A5F5),
+                Color(0xFF2196F3),
               ],
             ),
           ),
           child: Column(
             children: [
-              // Header
               Container(
-                padding: EdgeInsets.fromLTRB(20, 60, 20, 30),
+                padding: const EdgeInsets.fromLTRB(20, 60, 20, 30),
                 child: Row(
-                  children: [
+                  children: const [
                     Text(
                       'Menu Tambahan',
                       style: TextStyle(
@@ -147,18 +160,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              
-              // Divider line
               Container(
-                margin: EdgeInsets.symmetric(horizontal: 20),
+                margin: const EdgeInsets.symmetric(horizontal: 20),
                 height: 1,
                 color: Colors.white.withOpacity(0.3),
               ),
-              
-              // Menu items
               Expanded(
                 child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 20),
                   child: Column(
                     children: [
                       _buildDrawerItem(
@@ -166,19 +176,19 @@ class _HomeScreenState extends State<HomeScreen> {
                         title: 'Tambah Catat Meter (Cater)',
                         onTap: () => _onDrawerTap(const TambahCaterScreen()),
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                       _buildDrawerItem(
                         icon: Icons.monetization_on_outlined,
                         title: 'Tambah Tarif Manual',
                         onTap: () => _onDrawerTap(const TambahTarifScreen()),
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                       _buildDrawerItem(
                         icon: Icons.edit_outlined,
                         title: 'Edit Tarif',
                         onTap: () => _onDrawerTap(const EditTarifScreen()),
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                       _buildDrawerItem(
                         icon: Icons.edit_document,
                         title: 'Edit Catat Meter (Cater)',
@@ -188,10 +198,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              
-              // Wave decoration at bottom
               CustomPaint(
-                size: Size(double.infinity, 120),
+                size: const Size(double.infinity, 120),
                 painter: DrawerWavePainter(),
               ),
             ],
@@ -219,31 +227,25 @@ class CustomBottomNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       height: 100,
       child: Stack(
         children: [
-          // Bottom navigation background (white box)
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
-            child: Container(
-              height: 70,
-              color: Colors.white,
-            ),
+            child: Container(height: 70, color: Colors.white),
           ),
-          // Wave decorations
           CustomPaint(
             size: Size(MediaQuery.of(context).size.width, 100),
             painter: WavePainter(),
           ),
-          // Navigation items
           Positioned(
             bottom: 10,
             left: 0,
             right: 0,
-            child: Container(
+            child: SizedBox(
               height: 60,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -287,7 +289,7 @@ class CustomBottomNavigationBar extends StatelessWidget {
           shape: BoxShape.circle,
           boxShadow: isSelected
               ? [
-                  BoxShadow(
+                  const BoxShadow(
                     color: Colors.black26,
                     blurRadius: 8,
                     offset: Offset(0, 2),
@@ -308,50 +310,34 @@ class CustomBottomNavigationBar extends StatelessWidget {
 class DrawerWavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    // Light blue wave (back layer)
     final lightBluePaint = Paint()
-      ..color = Color(0xFF90CAF9)
+      ..color = const Color(0xFF90CAF9)
       ..style = PaintingStyle.fill;
-
     final lightBluePath = Path();
     lightBluePath.moveTo(0, size.height * 0.3);
     lightBluePath.quadraticBezierTo(
-      size.width * 0.25, size.height * 0.1,
-      size.width * 0.5, size.height * 0.4,
-    );
+        size.width * 0.25, size.height * 0.1, size.width * 0.5, size.height * 0.4);
     lightBluePath.quadraticBezierTo(
-      size.width * 0.75, size.height * 0.7,
-      size.width, size.height * 0.2,
-    );
+        size.width * 0.75, size.height * 0.7, size.width, size.height * 0.2);
     lightBluePath.lineTo(size.width, size.height);
     lightBluePath.lineTo(0, size.height);
     lightBluePath.close();
-
     canvas.drawPath(lightBluePath, lightBluePaint);
 
-    // Yellow wave (front layer)
     final yellowPaint = Paint()
       ..color = Colors.yellow
       ..style = PaintingStyle.fill;
-
     final yellowPath = Path();
     yellowPath.moveTo(0, size.height * 0.6);
     yellowPath.quadraticBezierTo(
-      size.width * 0.2, size.height * 0.3,
-      size.width * 0.4, size.height * 0.7,
-    );
+        size.width * 0.2, size.height * 0.3, size.width * 0.4, size.height * 0.7);
     yellowPath.quadraticBezierTo(
-      size.width * 0.6, size.height * 0.9,
-      size.width * 0.8, size.height * 0.5,
-    );
+        size.width * 0.6, size.height * 0.9, size.width * 0.8, size.height * 0.5);
     yellowPath.quadraticBezierTo(
-      size.width * 0.9, size.height * 0.3,
-      size.width, size.height * 0.6,
-    );
+        size.width * 0.9, size.height * 0.3, size.width, size.height * 0.6);
     yellowPath.lineTo(size.width, size.height);
     yellowPath.lineTo(0, size.height);
     yellowPath.close();
-
     canvas.drawPath(yellowPath, yellowPaint);
   }
 
@@ -362,41 +348,34 @@ class DrawerWavePainter extends CustomPainter {
 class WavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    // Yellow wave (back layer)
     final yellowPaint = Paint()
       ..color = Colors.yellow
       ..style = PaintingStyle.fill;
-
     final yellowPath = Path();
     yellowPath.moveTo(0, size.height * 0.7);
-    
-    // Create flowing wave for yellow
-    yellowPath.quadraticBezierTo(size.width * 0.25, 0, size.width * 0.5, size.height * 0.4);
-    yellowPath.quadraticBezierTo(size.width * 0.75, size.height * 0.8, size.width, size.height * 0.3);
-    
+    yellowPath.quadraticBezierTo(
+        size.width * 0.25, 0, size.width * 0.5, size.height * 0.4);
+    yellowPath.quadraticBezierTo(
+        size.width * 0.75, size.height * 0.8, size.width, size.height * 0.3);
     yellowPath.lineTo(size.width, size.height);
     yellowPath.lineTo(0, size.height);
     yellowPath.close();
-
     canvas.drawPath(yellowPath, yellowPaint);
 
-    // Blue wave (front layer)
     final bluePaint = Paint()
-      ..color = const Color(0xFF64B5F6) // Lighter blue for contrast
+      ..color = const Color(0xFF64B5F6)
       ..style = PaintingStyle.fill;
-
     final bluePath = Path();
     bluePath.moveTo(0, size.height * 0.8);
-    
-    // Create flowing wave for blue (different curve)
-    bluePath.quadraticBezierTo(size.width * 0.2, size.height * 0.2, size.width * 0.4, size.height * 0.6);
-    bluePath.quadraticBezierTo(size.width * 0.6, size.height, size.width * 0.8, size.height * 0.4);
-    bluePath.quadraticBezierTo(size.width * 0.9, size.height * 0.1, size.width, size.height * 0.5);
-    
+    bluePath.quadraticBezierTo(
+        size.width * 0.2, size.height * 0.2, size.width * 0.4, size.height * 0.6);
+    bluePath.quadraticBezierTo(
+        size.width * 0.6, size.height, size.width * 0.8, size.height * 0.4);
+    bluePath.quadraticBezierTo(
+        size.width * 0.9, size.height * 0.1, size.width, size.height * 0.5);
     bluePath.lineTo(size.width, size.height);
     bluePath.lineTo(0, size.height);
     bluePath.close();
-
     canvas.drawPath(bluePath, bluePaint);
   }
 
