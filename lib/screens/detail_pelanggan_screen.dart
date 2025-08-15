@@ -4,7 +4,13 @@ import 'histori_screen.dart';
 
 class DetailPelangganScreen extends StatefulWidget {
   final String pelangganId;
-  const DetailPelangganScreen({required this.pelangganId, Key? key}) : super(key: key);
+  final Map<String, dynamic> currentUser;
+
+  const DetailPelangganScreen({
+    required this.pelangganId,
+    required this.currentUser,
+    Key? key,
+  }) : super(key: key);
 
   @override
   State<DetailPelangganScreen> createState() => _DetailPelangganScreenState();
@@ -233,8 +239,6 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
     );
   }
 
-  // Removed separate card methods as they are now part of main card sections
-
   Widget _buildInfoRow(String label, dynamic value, {bool isBlue = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -319,7 +323,10 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => HistoryScreen(pelangganId: widget.pelangganId),
+        builder: (context) => HistoryScreen(
+          pelangganId: widget.pelangganId,
+          currentUser: widget.currentUser,
+        ),
       ),
     );
   }

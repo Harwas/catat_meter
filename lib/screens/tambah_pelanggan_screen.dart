@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 class TambahPelangganScreen extends StatefulWidget {
-  const TambahPelangganScreen({Key? key}) : super(key: key);
+  final Map<String, dynamic> currentUser;
+
+  const TambahPelangganScreen({required this.currentUser, Key? key}) : super(key: key);
 
   @override
   State<TambahPelangganScreen> createState() => _TambahPelangganScreenState();
@@ -27,6 +29,11 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
     super.initState();
     _fetchCater();
     _fetchTarif();
+
+    // Jika role cater, otomatis pilih cater sesuai user & disable dropdown cater
+    if (widget.currentUser['role'] == 'cater') {
+      _selectedCaterKode = widget.currentUser['cater_kode'];
+    }
   }
 
   void _fetchCater() {
@@ -61,6 +68,7 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
             final value = Map<String, dynamic>.from(e.value as Map);
             value['key'] = e.key as String;
             value['nama'] = value['nama'] ?? '';
+            value['harga'] = value['harga'] ?? 0;
             return value;
           }).toList();
         });
@@ -134,6 +142,9 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
         'kubikasi': 0,
         'terhutang': 0,
         'tanggal_catat': DateTime.now().toIso8601String(),
+        'dibuat_oleh': widget.currentUser['username'],
+        'dibuat_oleh_uid': widget.currentUser['uid'],
+        'dibuat_oleh_role': widget.currentUser['role'],
       });
 
       if (!mounted) return;
@@ -214,7 +225,6 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
                           width: 35,
                           height: 35,
                           fit: BoxFit.contain,
-                          // Menangani error jika gambar tidak ditemukan
                         ),
                       ),
                     ),
@@ -223,7 +233,6 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
               ),
             ),
           ),
-          
           // Content area dengan card
           Expanded(
             child: Container(
@@ -297,7 +306,6 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
                                   ],
                                 ),
                               ),
-                            
                             // Nama Pelanggan
                             _buildCustomTextField(
                               controller: _namaController,
@@ -305,7 +313,6 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
                               validator: (v) => v == null || v.isEmpty ? 'Nama wajib diisi' : null,
                             ),
                             SizedBox(height: 20),
-                            
                             // Alamat
                             _buildCustomTextField(
                               controller: _alamatController,
@@ -313,7 +320,6 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
                               validator: (v) => v == null || v.isEmpty ? 'Alamat wajib diisi' : null,
                             ),
                             SizedBox(height: 20),
-                            
                             // No Telepon
                             _buildCustomTextField(
                               controller: _telponController,
@@ -322,7 +328,6 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
                               validator: (v) => v == null || v.isEmpty ? 'No telpon wajib diisi' : null,
                             ),
                             SizedBox(height: 20),
-                            
                             // Tanggal Sambung
                             InkWell(
                               onTap: () => _pickTanggalSambung(context),
@@ -364,7 +369,6 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
                               ),
                             ),
                             SizedBox(height: 20),
-                            
                             // Koordinat
                             _buildCustomTextField(
                               controller: _koordinatController,
@@ -372,7 +376,6 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
                               validator: (v) => v == null || v.isEmpty ? 'Koordinat wajib diisi' : null,
                             ),
                             SizedBox(height: 20),
-                            
                             // Cater
                             _buildCustomDropdown<String>(
                               value: _selectedCaterKode,
@@ -385,11 +388,12 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
                                   child: Text("$kode - $nama"),
                                 );
                               }).toList(),
-                              onChanged: (v) => setState(() => _selectedCaterKode = v),
+                              onChanged: (widget.currentUser['role'] == 'cater')
+                                  ? null
+                                  : (v) => setState(() => _selectedCaterKode = v),
                               validator: (v) => v == null ? 'Cater wajib dipilih' : null,
                             ),
                             SizedBox(height: 20),
-                            
                             // Tarif
                             _buildCustomDropdown<String>(
                               value: _selectedTarifKey,
@@ -411,8 +415,7 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
                         ),
                       ),
                     ),
-                    
-                    // Tombol Lanjut ke Pembayaran
+                    // Tombol Simpan
                     Container(
                       padding: EdgeInsets.all(24),
                       child: _loading
@@ -500,7 +503,7 @@ class _TambahPelangganScreenState extends State<TambahPelangganScreen> {
     required T? value,
     required String label,
     required List<DropdownMenuItem<T>> items,
-    required ValueChanged<T?> onChanged,
+    required ValueChanged<T?>? onChanged,
     String? Function(T?)? validator,
   }) {
     return Column(

@@ -3,6 +3,9 @@ import 'package:firebase_database/firebase_database.dart';
 import 'form_kalkulasi_screen.dart';
 
 class PencatatanScreen extends StatefulWidget {
+  final Map<String, dynamic> currentUser;
+  const PencatatanScreen({required this.currentUser, Key? key}) : super(key: key);
+
   @override
   _PencatatanScreenState createState() => _PencatatanScreenState();
 }
@@ -34,7 +37,16 @@ class _PencatatanScreenState extends State<PencatatanScreen> {
         final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
         final List<Map<dynamic, dynamic>> list = [];
         data.forEach((key, value) {
-          list.add(Map<dynamic, dynamic>.from(value));
+          final pelanggan = Map<dynamic, dynamic>.from(value);
+          pelanggan['id'] = pelanggan['id'] ?? key;
+          // Filtering jika cater
+          if (widget.currentUser['role'] == 'cater') {
+            if (pelanggan['cater_kode'] == widget.currentUser['cater_kode']) {
+              list.add(pelanggan);
+            }
+          } else {
+            list.add(pelanggan);
+          }
         });
         setState(() {
           pelangganList = list;
@@ -72,6 +84,7 @@ class _PencatatanScreenState extends State<PencatatanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final role = widget.currentUser['role'];
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: _loading
@@ -161,7 +174,10 @@ class _PencatatanScreenState extends State<PencatatanScreen> {
                                         context,
                                         MaterialPageRoute(
                                           builder: (context) =>
-                                              FormKalkulasiScreen(pelanggan: pelanggan),
+                                              FormKalkulasiScreen(
+                                                pelanggan: pelanggan,
+                                                currentUser: widget.currentUser,
+                                              ),
                                         ),
                                       );
                                     },

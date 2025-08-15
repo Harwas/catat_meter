@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 class TambahCaterScreen extends StatefulWidget {
-  const TambahCaterScreen({Key? key}) : super(key: key);
+  final Map<String, dynamic> currentUser; // Tambah parameter user
+
+  const TambahCaterScreen({required this.currentUser, Key? key}) : super(key: key);
 
   @override
   State<TambahCaterScreen> createState() => _TambahCaterScreenState();
@@ -26,6 +28,9 @@ class _TambahCaterScreenState extends State<TambahCaterScreen> {
       'kode': kode,
       'nama': nama,
       'created_at': DateTime.now().toIso8601String(),
+      'dibuat_oleh': widget.currentUser['username'],
+      'dibuat_oleh_uid': widget.currentUser['uid'],
+      'dibuat_oleh_role': widget.currentUser['role'],
     });
 
     if (!mounted) return;

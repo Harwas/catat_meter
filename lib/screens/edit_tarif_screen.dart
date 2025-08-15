@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 class EditTarifScreen extends StatefulWidget {
-  const EditTarifScreen({Key? key}) : super(key: key);
+  final Map<String, dynamic> currentUser; // Tambahkan parameter user
+
+  const EditTarifScreen({required this.currentUser, Key? key}) : super(key: key);
 
   @override
   State<EditTarifScreen> createState() => _EditTarifScreenState();
@@ -62,6 +64,10 @@ class _EditTarifScreenState extends State<EditTarifScreen> {
       await FirebaseDatabase.instance.ref('tarif/$_selectedTarifKode').update({
         'nama': namaBaru,
         'harga': hargaBaru,
+        'diupdate_oleh': widget.currentUser['username'],
+        'diupdate_oleh_uid': widget.currentUser['uid'],
+        'diupdate_oleh_role': widget.currentUser['role'],
+        'tanggal_update': DateTime.now().toIso8601String(),
       });
 
       if (!mounted) return;

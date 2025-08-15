@@ -4,7 +4,9 @@ import 'detail_pelanggan_screen.dart';
 import 'tambah_pelanggan_screen.dart';
 
 class PelangganScreen extends StatefulWidget {
-  const PelangganScreen({Key? key}) : super(key: key);
+  final Map<String, dynamic> currentUser; // role, cater_kode, dsb
+
+  const PelangganScreen({required this.currentUser, Key? key}) : super(key: key);
 
   @override
   State<PelangganScreen> createState() => _PelangganScreenState();
@@ -41,8 +43,15 @@ class _PelangganScreenState extends State<PelangganScreen> {
         value.forEach((key, data) {
           if (data is Map) {
             final pelanggan = Map<String, dynamic>.from(data);
-            pelanggan['id'] = pelanggan['id'] ?? key; // pastikan id tetap ada
-            list.add(pelanggan);
+            pelanggan['id'] = pelanggan['id'] ?? key;
+            // Filtering jika role cater: hanya pelanggan milik cater tersebut
+            if (widget.currentUser['role'] == 'cater') {
+              if (pelanggan['cater_kode'] == widget.currentUser['cater_kode']) {
+                list.add(pelanggan);
+              }
+            } else {
+              list.add(pelanggan);
+            }
           }
         });
       }
@@ -69,10 +78,19 @@ class _PelangganScreenState extends State<PelangganScreen> {
   }
 
   void _navigateToTambahPelanggan() async {
+    // Hanya admin dan cater yang bisa tambah
+    if (widget.currentUser['role'] == 'bendahara') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Anda tidak punya izin menambah pelanggan')),
+      );
+      return;
+    }
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => TambahPelangganScreen(),
+        builder: (_) => TambahPelangganScreen(
+          currentUser: widget.currentUser,
+        ),
       ),
     );
     if (result != null) {
@@ -84,21 +102,25 @@ class _PelangganScreenState extends State<PelangganScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => DetailPelangganScreen(pelangganId: pelangganId),
+        builder: (_) => DetailPelangganScreen(pelangganId: pelangganId, currentUser: widget.currentUser),
       ),
     );
-    // Bisa refresh data jika perlu setelah kembali dari detail
+    // Jika perlu refresh data setelah kembali dari detail
+    _fetchPelanggan();
   }
 
   @override
   Widget build(BuildContext context) {
+    final role = widget.currentUser['role'];
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: _navigateToTambahPelanggan,
-        backgroundColor: const Color(0xFF2196F3),
-        child: const Icon(Icons.add, color: Colors.white),
-        tooltip: 'Tambah Pelanggan',
-      ),
+      floatingActionButton: (role == 'admin' || role == 'cater')
+          ? FloatingActionButton(
+              onPressed: _navigateToTambahPelanggan,
+              backgroundColor: const Color(0xFF2196F3),
+              child: const Icon(Icons.add, color: Colors.white),
+              tooltip: 'Tambah Pelanggan',
+            )
+          : null,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(

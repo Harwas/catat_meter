@@ -4,7 +4,12 @@ import 'form_pembayaran_screen.dart';
 
 class FormKalkulasiScreen extends StatefulWidget {
   final Map<dynamic, dynamic> pelanggan;
-  const FormKalkulasiScreen({required this.pelanggan, Key? key}) : super(key: key);
+  final Map<String, dynamic> currentUser;
+  const FormKalkulasiScreen({
+    required this.pelanggan,
+    required this.currentUser,
+    Key? key,
+  }) : super(key: key);
 
   @override
   State<FormKalkulasiScreen> createState() => _FormKalkulasiScreenState();
@@ -91,6 +96,7 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
           standBaru: standBaru,
           tanggalCatat: tanggalCatat,
           totalTagihan: _tagihan,
+          currentUser: widget.currentUser, // <-- Tambahkan ini
         ),
       ),
     );

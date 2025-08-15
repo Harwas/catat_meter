@@ -7,6 +7,7 @@ class FormPembayaranScreen extends StatefulWidget {
   final int standBaru;
   final String tanggalCatat;
   final int totalTagihan;
+  final Map<String, dynamic> currentUser; // <-- Tambahkan ini
 
   const FormPembayaranScreen({
     Key? key,
@@ -15,6 +16,7 @@ class FormPembayaranScreen extends StatefulWidget {
     required this.standBaru,
     required this.tanggalCatat,
     required this.totalTagihan,
+    required this.currentUser, // <-- Tambahkan ini
   }) : super(key: key);
 
   @override
@@ -73,13 +75,17 @@ class _FormPembayaranScreenState extends State<FormPembayaranScreen> {
           .ref('pembayaran/${widget.pelangganId}_$timestamp')
           .set({
         'pelanggan_id': widget.pelangganId,
-        'pelanggan_nama': namaPelanggan, // <-- ditambahkan nama pelanggan
+        'pelanggan_nama': namaPelanggan,
         'pembayaran': pembayaran,
         'tanggal': DateTime.now().toIso8601String(),
         'total_tagihan': widget.totalTagihan,
         'terhutang': terhutangBaru,
         'stand_awal': widget.standAwal,
         'stand_baru': widget.standBaru,
+        // Tambahkan jika ingin simpan user yang melakukan pembayaran, contoh:
+        'petugas_id': widget.currentUser['uid'],
+        'petugas_nama': widget.currentUser['username'],
+        'petugas_role': widget.currentUser['role'],
       });
 
       // Update data pelanggan

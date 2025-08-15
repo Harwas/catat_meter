@@ -9,7 +9,8 @@ import 'edit_tarif_screen.dart';
 import 'edit_cater_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  final Map<String, dynamic> currentUser;
+  const HomeScreen({required this.currentUser, Key? key}) : super(key: key);
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -18,11 +19,17 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    PelangganScreen(),
-    PencatatanScreen(),
-    KeuanganScreen(),
-  ];
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      PelangganScreen(currentUser: widget.currentUser),
+      PencatatanScreen(currentUser: widget.currentUser),
+      KeuanganScreen(currentUser: widget.currentUser),
+    ];
+  }
 
   final List<String> _titles = [
     'PELANGGAN',
@@ -31,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   void _onDrawerTap(Widget page) {
-    Navigator.pop(context); // Close the drawer
+    Navigator.pop(context);
     Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
 
@@ -39,30 +46,34 @@ class _HomeScreenState extends State<HomeScreen> {
     required IconData icon,
     required String title,
     required VoidCallback onTap,
+    bool enabled = true,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 24,
-              height: 24,
-              child: Icon(icon, color: Colors.white, size: 24),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w400,
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.4,
+      child: GestureDetector(
+        onTap: enabled ? onTap : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: Icon(icon, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -70,6 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final role = widget.currentUser['role'];
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: PreferredSize(
@@ -77,12 +89,14 @@ class _HomeScreenState extends State<HomeScreen> {
         child: AppBar(
           backgroundColor: const Color(0xFF2196F3),
           elevation: 0,
-          leading: Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white, size: 28),
-              onPressed: () => Scaffold.of(context).openDrawer(),
-            ),
-          ),
+          leading: role == 'admin'
+              ? Builder(
+                  builder: (context) => IconButton(
+                    icon: const Icon(Icons.menu, color: Colors.white, size: 28),
+                    onPressed: () => Scaffold.of(context).openDrawer(),
+                  ),
+                )
+              : null,
           title: Text(
             _titles[_currentIndex],
             style: const TextStyle(
@@ -94,13 +108,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           centerTitle: true,
           actions: [
-            // Indikator koneksi online/offline
             StreamBuilder(
-              stream:
-                  FirebaseDatabase.instance.ref(".info/connected").onValue,
+              stream: FirebaseDatabase.instance.ref(".info/connected").onValue,
               builder: (context, snapshot) {
-                bool online =
-                    snapshot.data?.snapshot.value as bool? ?? false;
+                bool online = snapshot.data?.snapshot.value as bool? ?? false;
                 return Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Icon(
@@ -129,83 +140,86 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      drawer: Drawer(
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFF42A5F5),
-                Color(0xFF2196F3),
-              ],
-            ),
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 60, 20, 30),
-                child: Row(
-                  children: const [
-                    Text(
-                      'Menu Tambahan',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    Spacer(),
-                  ],
-                ),
-              ),
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                height: 1,
-                color: Colors.white.withOpacity(0.3),
-              ),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 20),
-                  child: Column(
-                    children: [
-                      _buildDrawerItem(
-                        icon: Icons.add_box_outlined,
-                        title: 'Tambah Catat Meter (Cater)',
-                        onTap: () => _onDrawerTap(const TambahCaterScreen()),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildDrawerItem(
-                        icon: Icons.monetization_on_outlined,
-                        title: 'Tambah Tarif Manual',
-                        onTap: () => _onDrawerTap(const TambahTarifScreen()),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildDrawerItem(
-                        icon: Icons.edit_outlined,
-                        title: 'Edit Tarif',
-                        onTap: () => _onDrawerTap(const EditTarifScreen()),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildDrawerItem(
-                        icon: Icons.edit_document,
-                        title: 'Edit Catat Meter (Cater)',
-                        onTap: () => _onDrawerTap(const EditCaterScreen()),
-                      ),
+      drawer: role == 'admin'
+          ? Drawer(
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFF42A5F5),
+                      Color(0xFF2196F3),
                     ],
                   ),
                 ),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(20, 60, 20, 30),
+                      child: Row(
+                        children: [
+                          const Text(
+                            'Menu Tambahan',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const Spacer(),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
+                      height: 1,
+                      color: Colors.white.withOpacity(0.3),
+                    ),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                        child: Column(
+                          children: [
+                            _buildDrawerItem(
+                              icon: Icons.add_box_outlined,
+                              title: 'Tambah Cater',
+                              onTap: () => _onDrawerTap(TambahCaterScreen(currentUser: widget.currentUser)),
+                            ),
+                            const SizedBox(height: 20),
+                            _buildDrawerItem(
+                              icon: Icons.monetization_on_outlined,
+                              title: 'Tambah Tarif Manual',
+                              onTap: () => _onDrawerTap(TambahTarifScreen(currentUser: widget.currentUser)),
+                              enabled: true,
+                            ),
+                            const SizedBox(height: 20),
+                            _buildDrawerItem(
+                              icon: Icons.edit_outlined,
+                              title: 'Edit Tarif',
+                              onTap: () => _onDrawerTap(EditTarifScreen(currentUser: widget.currentUser)),
+                              enabled: true,
+                            ),
+                            const SizedBox(height: 20),
+                            _buildDrawerItem(
+                              icon: Icons.edit_document,
+                              title: 'Edit Cater',
+                              onTap: () => _onDrawerTap(EditCaterScreen(currentUser: widget.currentUser)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    CustomPaint(
+                      size: const Size(double.infinity, 120),
+                      painter: DrawerWavePainter(),
+                    ),
+                  ],
+                ),
               ),
-              CustomPaint(
-                size: const Size(double.infinity, 120),
-                painter: DrawerWavePainter(),
-              ),
-            ],
-          ),
-        ),
-      ),
+            )
+          : null,
       body: _screens[_currentIndex],
       bottomNavigationBar: CustomBottomNavigationBar(
         currentIndex: _currentIndex,

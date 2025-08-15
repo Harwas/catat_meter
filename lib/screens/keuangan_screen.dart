@@ -39,7 +39,8 @@ class KeuanganItem {
 }
 
 class KeuanganScreen extends StatefulWidget {
-  const KeuanganScreen({Key? key}) : super(key: key);
+  final Map<String, dynamic> currentUser;
+  const KeuanganScreen({required this.currentUser, Key? key}) : super(key: key);
 
   @override
   State<KeuanganScreen> createState() => _KeuanganScreenState();
@@ -259,6 +260,9 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Contoh: role-based, hanya admin & bendahara dapat tambah pemasukkan/pengeluaran
+    final bool canTransact = widget.currentUser['role'] == 'admin' || widget.currentUser['role'] == 'bendahara';
+
     return Scaffold(
       backgroundColor: const Color(0xFFE3F2FD),
       body: _loading
@@ -270,9 +274,19 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
                   children: [
                     _buildSection('Pendapatan', pendapatan, isPendapatan: true),
                     const SizedBox(height: 16),
-                    _buildSection('Pemasukkan', pemasukkan, isPendapatan: false, action: () => _tambahTransaksi('pemasukkan')),
+                    _buildSection(
+                      'Pemasukkan',
+                      pemasukkan,
+                      isPendapatan: false,
+                      action: canTransact ? () => _tambahTransaksi('pemasukkan') : null,
+                    ),
                     const SizedBox(height: 16),
-                    _buildSection('Pengeluaran', pengeluaran, isPendapatan: false, action: () => _tambahTransaksi('pengeluaran')),
+                    _buildSection(
+                      'Pengeluaran',
+                      pengeluaran,
+                      isPendapatan: false,
+                      action: canTransact ? () => _tambahTransaksi('pengeluaran') : null,
+                    ),
                   ],
                 ),
               ),
@@ -534,6 +548,10 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
         'judul': judul,
         'nominal': nominal,
         'tanggal': tanggal!.toIso8601String(),
+        // Misal ingin simpan user yang menambahkan transaksi:
+        'petugas_id': widget.currentUser['uid'],
+        'petugas_nama': widget.currentUser['username'],
+        'petugas_role': widget.currentUser['role'],
       });
       _loadKeuangan();
     }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'screens/home_screen.dart';
+import 'screens/login_screen.dart'; // Buat file login_screen.dart
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,12 +15,6 @@ Future<void> main() async {
   FirebaseDatabase.instance.ref("pelanggan").keepSynced(true);
   FirebaseDatabase.instance.ref("pencatatan").keepSynced(true);
   FirebaseDatabase.instance.ref("keuangan").keepSynced(true);
-
-  // Pantau status koneksi Firebase
-  FirebaseDatabase.instance.ref(".info/connected").onValue.listen((event) {
-    final connected = event.snapshot.value as bool? ?? false;
-    debugPrint("Koneksi Firebase: ${connected ? "Online" : "Offline"}");
-  });
 
   runApp(const MyApp());
 }
@@ -36,7 +31,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      home: const LoginScreen(), // Tampilkan login dulu
     );
   }
 }

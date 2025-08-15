@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 class TambahTarifScreen extends StatefulWidget {
-  const TambahTarifScreen({Key? key}) : super(key: key);
+  final Map<String, dynamic> currentUser; // Tambahkan ini
+
+  const TambahTarifScreen({required this.currentUser, Key? key}) : super(key: key);
 
   @override
   State<TambahTarifScreen> createState() => _TambahTarifScreenState();
@@ -30,10 +32,14 @@ class _TambahTarifScreenState extends State<TambahTarifScreen> {
     }
 
     try {
-      // Simpan hanya field nama dan harga
+      // Simpan hanya field nama dan harga, tambahkan user info
       await FirebaseDatabase.instance.ref('tarif/$namaTarif').set({
         'nama': namaTarif,
         'harga': harga,
+        'dibuat_oleh': widget.currentUser['username'],
+        'dibuat_oleh_uid': widget.currentUser['uid'],
+        'dibuat_oleh_role': widget.currentUser['role'],
+        'tanggal_buat': DateTime.now().toIso8601String(),
       });
 
       if (!mounted) return;

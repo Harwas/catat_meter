@@ -3,7 +3,13 @@ import 'package:firebase_database/firebase_database.dart';
 
 class HistoryScreen extends StatefulWidget {
   final String pelangganId;
-  const HistoryScreen({required this.pelangganId, Key? key}) : super(key: key);
+  final Map<String, dynamic> currentUser; // Tambahkan ini
+
+  const HistoryScreen({
+    required this.pelangganId,
+    required this.currentUser, // Tambahkan ini
+    Key? key,
+  }) : super(key: key);
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();

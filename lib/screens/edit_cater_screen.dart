@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 class EditCaterScreen extends StatefulWidget {
-  const EditCaterScreen({Key? key}) : super(key: key);
+  final Map<String, dynamic> currentUser; // Tambahkan parameter currentUser
+
+  const EditCaterScreen({required this.currentUser, Key? key}) : super(key: key);
 
   @override
   State<EditCaterScreen> createState() => _EditCaterScreenState();
@@ -61,6 +63,10 @@ class _EditCaterScreenState extends State<EditCaterScreen> {
       await FirebaseDatabase.instance.ref('cater/$_selectedCaterKode').update({
         'nama': namaBaru,
         'kode': kodeBaru,
+        'diupdate_oleh': widget.currentUser['username'],
+        'diupdate_oleh_uid': widget.currentUser['uid'],
+        'diupdate_oleh_role': widget.currentUser['role'],
+        'tanggal_update': DateTime.now().toIso8601String(),
       });
 
       if (!mounted) return;
