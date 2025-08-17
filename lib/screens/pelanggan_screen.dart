@@ -113,6 +113,24 @@ class _PelangganScreenState extends State<PelangganScreen> {
   Widget build(BuildContext context) {
     final role = widget.currentUser['role'];
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF2196F3),
+        elevation: 0,
+        title: const Text(
+          'PELANGGAN',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            letterSpacing: 1.2,
+          ),
+        ),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       floatingActionButton: (role == 'admin' || role == 'cater')
           ? FloatingActionButton(
               onPressed: _navigateToTambahPelanggan,
@@ -125,6 +143,7 @@ class _PelangganScreenState extends State<PelangganScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
+                // Search Bar Section
                 Container(
                   color: const Color(0xFF2196F3),
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
@@ -147,6 +166,7 @@ class _PelangganScreenState extends State<PelangganScreen> {
                     ),
                   ),
                 ),
+                // List Content
                 Expanded(
                   child: _filteredList.isEmpty
                       ? const Center(

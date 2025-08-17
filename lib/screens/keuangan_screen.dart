@@ -265,6 +265,24 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFE3F2FD),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF2196F3),
+        elevation: 0,
+        title: const Text(
+          'KEUANGAN',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            letterSpacing: 1.2,
+          ),
+        ),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(

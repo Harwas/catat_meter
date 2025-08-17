@@ -17,63 +17,131 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
-
-  late final List<Widget> _screens;
-
-  @override
-  void initState() {
-    super.initState();
-    _screens = [
-      PelangganScreen(currentUser: widget.currentUser),
-      PencatatanScreen(currentUser: widget.currentUser),
-      KeuanganScreen(currentUser: widget.currentUser),
-    ];
-  }
-
-  final List<String> _titles = [
-    'PELANGGAN',
-    'PENCATATAN',
-    'KEUANGAN'
-  ];
-
-  void _onDrawerTap(Widget page) {
-    Navigator.pop(context);
-    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-  }
-
-  Widget _buildDrawerItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    bool enabled = true,
-  }) {
-    return Opacity(
-      opacity: enabled ? 1.0 : 0.4,
-      child: GestureDetector(
-        onTap: enabled ? onTap : null,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Row(
+  void _showLogoutConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
-                width: 24,
-                height: 24,
-                child: Icon(icon, color: Colors.white, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
+              Icon(Icons.logout, color: Colors.red[600], size: 22),
+              const SizedBox(width: 8),
+              const Expanded(
                 child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w400,
-                  ),
+                  'Konfirmasi Logout',
+                  style: TextStyle(fontSize: 18),
                 ),
               ),
             ],
           ),
+          content: const Text(
+            'Apakah Anda yakin ingin keluar dari aplikasi?',
+            style: TextStyle(fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Batal',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _logout();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[600],
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              ),
+              child: const Text('Logout'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _logout() {
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      '/',
+      (Route<dynamic> route) => false,
+    );
+  }
+
+  void _navigateToScreen(Widget screen) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
+    );
+  }
+
+  Widget _buildMenuCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: 35,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2196F3),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
@@ -82,31 +150,56 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final role = widget.currentUser['role'];
+    final username = widget.currentUser['username'] ?? 'User';
+    
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(80),
         child: AppBar(
           backgroundColor: const Color(0xFF2196F3),
           elevation: 0,
-          leading: role == 'admin'
-              ? Builder(
-                  builder: (context) => IconButton(
-                    icon: const Icon(Icons.menu, color: Colors.white, size: 28),
-                    onPressed: () => Scaffold.of(context).openDrawer(),
+          automaticallyImplyLeading: false,
+          title: Row(
+            children: [
+              Container(
+                width: 45,
+                height: 45,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFEB3B),
+                  shape: BoxShape.circle,
+                ),
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/images/PROFIL.PNG',
+                    fit: BoxFit.cover,
                   ),
-                )
-              : null,
-          title: Text(
-            _titles[_currentIndex],
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-              letterSpacing: 1.2,
-            ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Selamat Datang',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    username,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          centerTitle: true,
           actions: [
             StreamBuilder(
               stream: FirebaseDatabase.instance.ref(".info/connected").onValue,
@@ -122,277 +215,279 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
-            Container(
-              margin: const EdgeInsets.only(right: 16),
-              width: 40,
-              height: 40,
-              decoration: const BoxDecoration(
-                color: Colors.yellow,
-                shape: BoxShape.circle,
+            IconButton(
+              onPressed: _showLogoutConfirmation,
+              icon: const Icon(
+                Icons.logout,
+                color: Colors.white,
+                size: 24,
               ),
-              child: ClipOval(
-                child: Image.asset(
-                  'assets/images/PROFIL.PNG',
-                  fit: BoxFit.cover,
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+      ),
+      body: SafeArea(
+        bottom: true, // Menghindari overlap dengan system navigation
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                const Color(0xFF2196F3).withOpacity(0.1),
+                Colors.white,
+              ],
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Welcome Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF42A5F5), Color(0xFF2196F3)],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Dashboard Menu',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Pilih menu untuk melanjutkan',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.8),
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 30),
+                
+                // Main Menu Grid
+                const Text(
+                  'Menu Utama',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2196F3),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
+                Expanded(
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 20,
+                    mainAxisSpacing: 20,
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.of(context).padding.bottom + 20,
+                    ), // Extra padding untuk system navigation
+                    children: [
+                      _buildMenuCard(
+                        icon: Icons.people,
+                        title: 'PELANGGAN',
+                        subtitle: 'Kelola data pelanggan',
+                        color: const Color(0xFF4CAF50),
+                        onTap: () => _navigateToScreen(
+                          PelangganScreen(currentUser: widget.currentUser),
+                        ),
+                      ),
+                      _buildMenuCard(
+                        icon: Icons.assignment,
+                        title: 'PENCATATAN',
+                        subtitle: 'Catat transaksi',
+                        color: const Color(0xFFFF9800),
+                        onTap: () => _navigateToScreen(
+                          PencatatanScreen(currentUser: widget.currentUser),
+                        ),
+                      ),
+                      _buildMenuCard(
+                        icon: Icons.attach_money,
+                        title: 'KEUANGAN',
+                        subtitle: 'Laporan keuangan',
+                        color: const Color(0xFF9C27B0),
+                        onTap: () => _navigateToScreen(
+                          KeuanganScreen(currentUser: widget.currentUser),
+                        ),
+                      ),
+                      if (role == 'admin')
+                        _buildMenuCard(
+                          icon: Icons.settings,
+                          title: 'ADMIN MENU',
+                          subtitle: 'Menu administrasi',
+                          color: const Color(0xFFE91E63),
+                          onTap: () => _showAdminMenu(),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  void _showAdminMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(25),
+              topRight: Radius.circular(25),
+            ),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 10),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text(
+                    'Menu Admin',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2196F3),
+                    ),
+                  ),
+                ),
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      children: [
+                        _buildAdminMenuItem(
+                          icon: Icons.add_box_outlined,
+                          title: 'Tambah Cater',
+                          onTap: () {
+                            Navigator.pop(context);
+                            _navigateToScreen(TambahCaterScreen(currentUser: widget.currentUser));
+                          },
+                        ),
+                        _buildAdminMenuItem(
+                          icon: Icons.monetization_on_outlined,
+                          title: 'Tambah Tarif Manual',
+                          onTap: () {
+                            Navigator.pop(context);
+                            _navigateToScreen(TambahTarifScreen(currentUser: widget.currentUser));
+                          },
+                        ),
+                        _buildAdminMenuItem(
+                          icon: Icons.edit_outlined,
+                          title: 'Edit Tarif',
+                          onTap: () {
+                            Navigator.pop(context);
+                            _navigateToScreen(EditTarifScreen(currentUser: widget.currentUser));
+                          },
+                        ),
+                        _buildAdminMenuItem(
+                          icon: Icons.edit_document,
+                          title: 'Edit Cater',
+                          onTap: () {
+                            Navigator.pop(context);
+                            _navigateToScreen(EditCaterScreen(currentUser: widget.currentUser));
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+  
+  Widget _buildAdminMenuItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 15),
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2196F3).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(
+            color: const Color(0xFF2196F3).withOpacity(0.3),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2196F3).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                color: const Color(0xFF2196F3),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF2196F3),
                 ),
               ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: Color(0xFF2196F3),
+              size: 16,
             ),
           ],
         ),
       ),
-      drawer: role == 'admin'
-          ? Drawer(
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFF42A5F5),
-                      Color(0xFF2196F3),
-                    ],
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(20, 60, 20, 30),
-                      child: Row(
-                        children: [
-                          const Text(
-                            'Menu Tambahan',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const Spacer(),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
-                      height: 1,
-                      color: Colors.white.withOpacity(0.3),
-                    ),
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                        child: Column(
-                          children: [
-                            _buildDrawerItem(
-                              icon: Icons.add_box_outlined,
-                              title: 'Tambah Cater',
-                              onTap: () => _onDrawerTap(TambahCaterScreen(currentUser: widget.currentUser)),
-                            ),
-                            const SizedBox(height: 20),
-                            _buildDrawerItem(
-                              icon: Icons.monetization_on_outlined,
-                              title: 'Tambah Tarif Manual',
-                              onTap: () => _onDrawerTap(TambahTarifScreen(currentUser: widget.currentUser)),
-                              enabled: true,
-                            ),
-                            const SizedBox(height: 20),
-                            _buildDrawerItem(
-                              icon: Icons.edit_outlined,
-                              title: 'Edit Tarif',
-                              onTap: () => _onDrawerTap(EditTarifScreen(currentUser: widget.currentUser)),
-                              enabled: true,
-                            ),
-                            const SizedBox(height: 20),
-                            _buildDrawerItem(
-                              icon: Icons.edit_document,
-                              title: 'Edit Cater',
-                              onTap: () => _onDrawerTap(EditCaterScreen(currentUser: widget.currentUser)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    CustomPaint(
-                      size: const Size(double.infinity, 120),
-                      painter: DrawerWavePainter(),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : null,
-      body: _screens[_currentIndex],
-      bottomNavigationBar: CustomBottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-      ),
     );
   }
-}
-
-class CustomBottomNavigationBar extends StatelessWidget {
-  final int currentIndex;
-  final Function(int) onTap;
-
-  const CustomBottomNavigationBar({
-    Key? key,
-    required this.currentIndex,
-    required this.onTap,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 100,
-      child: Stack(
-        children: [
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(height: 70, color: Colors.white),
-          ),
-          CustomPaint(
-            size: Size(MediaQuery.of(context).size.width, 100),
-            painter: WavePainter(),
-          ),
-          Positioned(
-            bottom: 10,
-            left: 0,
-            right: 0,
-            child: SizedBox(
-              height: 60,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildNavItem(
-                    icon: Icons.people,
-                    index: 0,
-                    isSelected: currentIndex == 0,
-                  ),
-                  _buildNavItem(
-                    icon: Icons.assignment,
-                    index: 1,
-                    isSelected: currentIndex == 1,
-                  ),
-                  _buildNavItem(
-                    icon: Icons.attach_money,
-                    index: 2,
-                    isSelected: currentIndex == 2,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required IconData icon,
-    required int index,
-    required bool isSelected,
-  }) {
-    return GestureDetector(
-      onTap: () => onTap(index),
-      child: Container(
-        width: isSelected ? 60 : 50,
-        height: isSelected ? 60 : 50,
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF2196F3) : Colors.transparent,
-          shape: BoxShape.circle,
-          boxShadow: isSelected
-              ? [
-                  const BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Icon(
-          icon,
-          color: isSelected ? Colors.white : Colors.black,
-          size: isSelected ? 32 : 24,
-        ),
-      ),
-    );
-  }
-}
-
-class DrawerWavePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final lightBluePaint = Paint()
-      ..color = const Color(0xFF90CAF9)
-      ..style = PaintingStyle.fill;
-    final lightBluePath = Path();
-    lightBluePath.moveTo(0, size.height * 0.3);
-    lightBluePath.quadraticBezierTo(
-        size.width * 0.25, size.height * 0.1, size.width * 0.5, size.height * 0.4);
-    lightBluePath.quadraticBezierTo(
-        size.width * 0.75, size.height * 0.7, size.width, size.height * 0.2);
-    lightBluePath.lineTo(size.width, size.height);
-    lightBluePath.lineTo(0, size.height);
-    lightBluePath.close();
-    canvas.drawPath(lightBluePath, lightBluePaint);
-
-    final yellowPaint = Paint()
-      ..color = Colors.yellow
-      ..style = PaintingStyle.fill;
-    final yellowPath = Path();
-    yellowPath.moveTo(0, size.height * 0.6);
-    yellowPath.quadraticBezierTo(
-        size.width * 0.2, size.height * 0.3, size.width * 0.4, size.height * 0.7);
-    yellowPath.quadraticBezierTo(
-        size.width * 0.6, size.height * 0.9, size.width * 0.8, size.height * 0.5);
-    yellowPath.quadraticBezierTo(
-        size.width * 0.9, size.height * 0.3, size.width, size.height * 0.6);
-    yellowPath.lineTo(size.width, size.height);
-    yellowPath.lineTo(0, size.height);
-    yellowPath.close();
-    canvas.drawPath(yellowPath, yellowPaint);
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
-}
-
-class WavePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final yellowPaint = Paint()
-      ..color = Colors.yellow
-      ..style = PaintingStyle.fill;
-    final yellowPath = Path();
-    yellowPath.moveTo(0, size.height * 0.7);
-    yellowPath.quadraticBezierTo(
-        size.width * 0.25, 0, size.width * 0.5, size.height * 0.4);
-    yellowPath.quadraticBezierTo(
-        size.width * 0.75, size.height * 0.8, size.width, size.height * 0.3);
-    yellowPath.lineTo(size.width, size.height);
-    yellowPath.lineTo(0, size.height);
-    yellowPath.close();
-    canvas.drawPath(yellowPath, yellowPaint);
-
-    final bluePaint = Paint()
-      ..color = const Color(0xFF64B5F6)
-      ..style = PaintingStyle.fill;
-    final bluePath = Path();
-    bluePath.moveTo(0, size.height * 0.8);
-    bluePath.quadraticBezierTo(
-        size.width * 0.2, size.height * 0.2, size.width * 0.4, size.height * 0.6);
-    bluePath.quadraticBezierTo(
-        size.width * 0.6, size.height, size.width * 0.8, size.height * 0.4);
-    bluePath.quadraticBezierTo(
-        size.width * 0.9, size.height * 0.1, size.width, size.height * 0.5);
-    bluePath.lineTo(size.width, size.height);
-    bluePath.lineTo(0, size.height);
-    bluePath.close();
-    canvas.drawPath(bluePath, bluePaint);
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
