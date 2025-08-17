@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 class TambahTarifScreen extends StatefulWidget {
-  final Map<String, dynamic> currentUser; // Tambahkan ini
+  final Map<String, dynamic> currentUser;
 
   const TambahTarifScreen({required this.currentUser, Key? key}) : super(key: key);
 
@@ -14,6 +14,7 @@ class _TambahTarifScreenState extends State<TambahTarifScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _namaController = TextEditingController();
   final TextEditingController _hargaController = TextEditingController();
+  final TextEditingController _abonemenController = TextEditingController();
   bool _loading = false;
 
   Future<void> _simpanTarif() async {
@@ -22,6 +23,7 @@ class _TambahTarifScreenState extends State<TambahTarifScreen> {
 
     final namaTarif = _namaController.text.trim().toUpperCase();
     final harga = int.tryParse(_hargaController.text.trim()) ?? 0;
+    final abonemen = int.tryParse(_abonemenController.text.trim()) ?? 0;
 
     if (namaTarif.isEmpty || harga <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -32,10 +34,10 @@ class _TambahTarifScreenState extends State<TambahTarifScreen> {
     }
 
     try {
-      // Simpan hanya field nama dan harga, tambahkan user info
       await FirebaseDatabase.instance.ref('tarif/$namaTarif').set({
         'nama': namaTarif,
         'harga': harga,
+        'abonemen': abonemen,
         'dibuat_oleh': widget.currentUser['username'],
         'dibuat_oleh_uid': widget.currentUser['uid'],
         'dibuat_oleh_role': widget.currentUser['role'],
@@ -91,7 +93,6 @@ class _TambahTarifScreenState extends State<TambahTarifScreen> {
                 width: 35,
                 height: 35,
                 fit: BoxFit.contain,
-                // Menangani error jika gambar tidak ditemukan
               ),
             ),
           ),
@@ -102,7 +103,6 @@ class _TambahTarifScreenState extends State<TambahTarifScreen> {
         child: Column(
           children: [
             const SizedBox(height: 20),
-            // Card container sesuai desain
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -125,7 +125,7 @@ class _TambahTarifScreenState extends State<TambahTarifScreen> {
                 key: _formKey,
                 child: Column(
                   children: [
-                    // Input Nama Tarif
+                    // Nama Tarif
                     TextFormField(
                       controller: _namaController,
                       decoration: InputDecoration(
@@ -146,8 +146,8 @@ class _TambahTarifScreenState extends State<TambahTarifScreen> {
                       validator: (v) => v == null || v.trim().isEmpty ? 'Nama tarif wajib diisi' : null,
                     ),
                     const SizedBox(height: 24),
-                    
-                    // Input Harga per m³
+
+                    // Harga
                     TextFormField(
                       controller: _hargaController,
                       decoration: InputDecoration(
@@ -168,8 +168,31 @@ class _TambahTarifScreenState extends State<TambahTarifScreen> {
                       keyboardType: TextInputType.number,
                       validator: (v) => v == null || int.tryParse(v.trim()) == null ? 'Harga wajib angka' : null,
                     ),
+                    const SizedBox(height: 24),
+
+                    // Abonemen
+                    TextFormField(
+                      controller: _abonemenController,
+                      decoration: InputDecoration(
+                        labelText: 'Nominal Abonemen',
+                        labelStyle: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 16,
+                        ),
+                        border: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        focusedBorder: const UnderlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFF4A90E2), width: 2),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      style: const TextStyle(fontSize: 16),
+                      keyboardType: TextInputType.number,
+                      validator: (v) => v == null || int.tryParse(v.trim()) == null ? 'Abonemen wajib angka' : null,
+                    ),
                     const SizedBox(height: 32),
-                    
+
                     // Tombol Simpan
                     _loading
                         ? const CircularProgressIndicator(

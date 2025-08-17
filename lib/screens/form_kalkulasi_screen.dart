@@ -24,6 +24,7 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
   int _terhutangSebelumnya = 0;
   int _standAwal = 0;
   int _hargaPerKubik = 0;
+  int _abonemen = 0; // NEW
   String _jenisTarif = '';
 
   int _toInt(dynamic value) => int.tryParse(value?.toString() ?? '0') ?? 0;
@@ -52,19 +53,21 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
         final data = snapshot.value as Map<dynamic, dynamic>;
         setState(() {
           _hargaPerKubik = _toInt(data['harga']);
+          _abonemen = _toInt(data['abonemen']); // NEW
           _jenisTarif = data['nama']?.toString() ?? '';
         });
         return;
       }
     }
 
-    // Kalau tidak ada tarif_key atau datanya tidak ditemukan → ambil harga default dari tarif pertama
+    // Kalau tidak ada tarif_key → ambil tarif pertama
     final allTarifSnap = await ref.get();
     if (allTarifSnap.exists) {
       final allTarif = allTarifSnap.value as Map<dynamic, dynamic>;
       final firstTarif = allTarif.entries.first.value as Map<dynamic, dynamic>;
       setState(() {
         _hargaPerKubik = _toInt(firstTarif['harga']);
+        _abonemen = _toInt(firstTarif['abonemen']); // NEW
         _jenisTarif = firstTarif['nama']?.toString() ?? '';
       });
     }
@@ -74,7 +77,7 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
     final standBaru = int.tryParse(_standBaruController.text) ?? _standAwal;
     final pemakaian = standBaru - _standAwal;
     final tagihanBaru = pemakaian * _hargaPerKubik;
-    final totalTagihan = tagihanBaru + _terhutangSebelumnya;
+    final totalTagihan = tagihanBaru + _abonemen + _terhutangSebelumnya; // NEW
 
     setState(() {
       _kubikasi = pemakaian;
@@ -96,7 +99,7 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
           standBaru: standBaru,
           tanggalCatat: tanggalCatat,
           totalTagihan: _tagihan,
-          currentUser: widget.currentUser, // <-- Tambahkan ini
+          currentUser: widget.currentUser,
         ),
       ),
     );
@@ -267,6 +270,8 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                                       _buildBillingRow('Pemakaian', '$_kubikasi m³'),
                                       SizedBox(height: 8),
                                       _buildBillingRow('Tarif', '${_formatCurrency(_hargaPerKubik)}/m³'),
+                                      SizedBox(height: 8),
+                                      _buildBillingRow('Abonemen', _formatCurrency(_abonemen)), // NEW
                                       SizedBox(height: 8),
                                       _buildBillingRow('Terhutang Sebelumnya', _formatCurrency(_terhutangSebelumnya)),
                                       SizedBox(height: 12),
