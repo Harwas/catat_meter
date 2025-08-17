@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'histori_screen.dart';
+import 'edit_pelanggan_screen.dart';
 
 class DetailPelangganScreen extends StatefulWidget {
   final String pelangganId;
@@ -41,6 +42,23 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
     }
   }
 
+  Future<void> _navigateToEditPelanggan() async {
+    if (data == null) return;
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditPelangganScreen(
+          pelangganId: widget.pelangganId,
+          pelangganData: data!,
+        ),
+      ),
+    );
+    // Jika selesai edit dan kembali, refresh data
+    if (result == true) {
+      _loadPelanggan();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -64,9 +82,9 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.history, color: Colors.white, size: 24),
-            onPressed: () => _navigateToHistory(),
-            tooltip: 'Lihat Histori',
+            icon: const Icon(Icons.edit, color: Colors.white, size: 24),
+            tooltip: 'Edit Pelanggan',
+            onPressed: data == null ? null : _navigateToEditPelanggan,
           ),
         ],
       ),
@@ -144,22 +162,22 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            
+
             // Basic info
             _buildInfoRow('ID Pelanggan', data!['id'], isBlue: true),
-            _buildInfoRow('Kategori', data!['cater_nama'], isBlue: true),
+            _buildInfoRow('Cater', data!['cater_nama'], isBlue: true),
             _buildInfoRow('Jenis Tarif', data!['tarif_nama']?.toString().split('_').first ?? '-', isBlue: true),
             _buildInfoRow('Alamat', data!['alamat'], isBlue: true),
             _buildInfoRow('No Telepon', data!['telpon'], isBlue: true),
             _buildInfoRow('Tanggal Sambung', _formatDate(data!['tanggal_sambung']), isBlue: true),
-            
+
             const SizedBox(height: 20),
-            
+
             // Data Meteran section
             _buildMeterSection(),
-            
+
             const SizedBox(height: 16),
-            
+
             // Pembayaran section
             _buildPaymentSection(),
           ],
