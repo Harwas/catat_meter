@@ -7,6 +7,9 @@ import 'tambah_cater_screen.dart';
 import 'tambah_tarif_screen.dart';
 import 'edit_tarif_screen.dart';
 import 'edit_cater_screen.dart';
+import 'package:excel/excel.dart' as ex; 
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 class HomeScreen extends StatefulWidget {
   final Map<String, dynamic> currentUser;
@@ -62,7 +65,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               ),
               child: const Text('Logout'),
             ),
@@ -151,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final role = widget.currentUser['role'];
     final username = widget.currentUser['username'] ?? 'User';
-    
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: PreferredSize(
@@ -228,7 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       body: SafeArea(
-        bottom: true, // Menghindari overlap dengan system navigation
+        bottom: true,
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -245,7 +249,6 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Welcome Card
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
@@ -277,10 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                
                 const SizedBox(height: 30),
-                
-                // Main Menu Grid
                 const Text(
                   'Menu Utama',
                   style: TextStyle(
@@ -290,7 +290,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                
                 Expanded(
                   child: GridView.count(
                     crossAxisCount: 2,
@@ -298,7 +297,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     mainAxisSpacing: 20,
                     padding: EdgeInsets.only(
                       bottom: MediaQuery.of(context).padding.bottom + 20,
-                    ), // Extra padding untuk system navigation
+                    ),
                     children: [
                       _buildMenuCard(
                         icon: Icons.people,
@@ -345,7 +344,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-  
+
   void _showAdminMenu() {
     showModalBottomSheet(
       context: context,
@@ -397,7 +396,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           title: 'Tambah Cater',
                           onTap: () {
                             Navigator.pop(context);
-                            _navigateToScreen(TambahCaterScreen(currentUser: widget.currentUser));
+                            _navigateToScreen(
+                                TambahCaterScreen(currentUser: widget.currentUser));
                           },
                         ),
                         _buildAdminMenuItem(
@@ -405,7 +405,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           title: 'Tambah Tarif Manual',
                           onTap: () {
                             Navigator.pop(context);
-                            _navigateToScreen(TambahTarifScreen(currentUser: widget.currentUser));
+                            _navigateToScreen(
+                                TambahTarifScreen(currentUser: widget.currentUser));
                           },
                         ),
                         _buildAdminMenuItem(
@@ -413,7 +414,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           title: 'Edit Tarif',
                           onTap: () {
                             Navigator.pop(context);
-                            _navigateToScreen(EditTarifScreen(currentUser: widget.currentUser));
+                            _navigateToScreen(
+                                EditTarifScreen(currentUser: widget.currentUser));
                           },
                         ),
                         _buildAdminMenuItem(
@@ -421,7 +423,24 @@ class _HomeScreenState extends State<HomeScreen> {
                           title: 'Edit Cater',
                           onTap: () {
                             Navigator.pop(context);
-                            _navigateToScreen(EditCaterScreen(currentUser: widget.currentUser));
+                            _navigateToScreen(
+                                EditCaterScreen(currentUser: widget.currentUser));
+                          },
+                        ),
+                        _buildAdminMenuItem(
+                          icon: Icons.file_download_outlined,
+                          title: 'Export Semua Data',
+                          onTap: () {
+                            Navigator.pop(context);
+                            _exportDataToExcel(); // export semua node
+                          },
+                        ),
+                        _buildAdminMenuItem(
+                          icon: Icons.delete_forever,
+                          title: 'Hapus Pelanggan',
+                          onTap: () {
+                            Navigator.pop(context);
+                            _showDeletePelangganDialog();
                           },
                         ),
                         const SizedBox(height: 20),
@@ -436,7 +455,7 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
-  
+
   Widget _buildAdminMenuItem({
     required IconData icon,
     required String title,
@@ -489,5 +508,171 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  // FUNGSI TAMBAHAN: DIALOG & DELETE PELANGGAN
+  void _showDeletePelangganDialog() {
+    final TextEditingController idController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Pelanggan'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Masukkan ID pelanggan yang ingin dihapus:'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: idController,
+              decoration: const InputDecoration(
+                labelText: 'ID Pelanggan',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              final id = idController.text.trim();
+              if (id.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('ID tidak boleh kosong')),
+                );
+                return;
+              }
+              Navigator.of(context).pop();
+              await _deletePelangganById(id);
+            },
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deletePelangganById(String id) async {
+    try {
+      final DatabaseReference pelangganRef = FirebaseDatabase.instance.ref('pelanggan/$id');
+      final snapshot = await pelangganRef.get();
+
+      if (!snapshot.exists) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('❌ Pelanggan dengan ID "$id" tidak ditemukan.')),
+          );
+        }
+        return;
+      }
+
+      await pelangganRef.remove();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✅ Pelanggan dengan ID "$id" berhasil dihapus.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Gagal menghapus pelanggan: $e')),
+        );
+      }
+    }
+  }
+
+  // ✅ fungsi export semua data dari Firebase ke Excel (support Map & List)
+  Future<void> _exportDataToExcel() async {
+    try {
+      var excel = ex.Excel.createExcel();
+      List<String> nodes = [
+        "pelanggan",
+        "pembayaran",
+        "pemasukkan",
+        "pengeluaran",
+        "tarif",
+        "cater",
+        "users",
+      ];
+
+      for (String node in nodes) {
+        DatabaseReference ref = FirebaseDatabase.instance.ref(node);
+        DataSnapshot snapshot = await ref.get();
+
+        if (!snapshot.exists) continue;
+
+        var sheet = excel[node];
+        Set<String> headers = {};
+
+        if (snapshot.value is Map) {
+          Map<dynamic, dynamic> data = snapshot.value as Map<dynamic, dynamic>;
+
+          data.forEach((key, value) {
+            if (value is Map) headers.addAll(value.keys.cast<String>());
+          });
+
+          sheet.appendRow(["firebase_key", ...headers.toList()]);
+
+          data.forEach((key, value) {
+            if (value is Map) {
+              List<dynamic> row = [key];
+              for (String h in headers) {
+                row.add(value[h] ?? "");
+              }
+              sheet.appendRow(row);
+            }
+          });
+        } else if (snapshot.value is List) {
+          List<dynamic> data = snapshot.value as List<dynamic>;
+
+          for (var value in data) {
+            if (value is Map) headers.addAll(value.keys.cast<String>());
+          }
+
+          sheet.appendRow(["index", ...headers.toList()]);
+
+          for (int i = 0; i < data.length; i++) {
+            var value = data[i];
+            if (value is Map) {
+              List<dynamic> row = [i];
+              for (String h in headers) {
+                row.add(value[h] ?? "");
+              }
+              sheet.appendRow(row);
+            }
+          }
+        }
+      }
+
+      // ✅ Simpan langsung ke folder Documents
+      Directory? dir = Directory("/storage/emulated/0/Documents");
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+
+      final file = File("${dir.path}/export_database.xlsx");
+      await file.writeAsBytes(excel.encode()!);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("✅ Export selesai! File ada di ${file.path}")),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ Export gagal: $e")),
+        );
+      }
+    }
   }
 }

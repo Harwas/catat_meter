@@ -105,6 +105,31 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
     );
   }
 
+  Future<void> _simpanPencatatanSaja() async {
+    if (!_formKey.currentState!.validate()) return;
+    final standBaru = int.tryParse(_standBaruController.text) ?? _standAwal;
+    final tanggalCatat = DateTime.now().toIso8601String();
+
+    DatabaseReference pelangganRef = FirebaseDatabase.instance.ref().child('pelanggan').child(widget.pelanggan['id'].toString());
+
+    await pelangganRef.update({
+      'stand_awal': _standAwal,
+      'stand_baru': standBaru,
+      'kubikasi': _kubikasi,
+      'terhutang': _tagihan,
+      'tanggal_catat': tanggalCatat,
+      'status': 'terhutang',
+      'updated_at': ServerValue.timestamp,
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Pencatatan berhasil disimpan sebagai terhutang')),
+      );
+      Navigator.popUntil(context, (route) => route.isFirst);
+    }
+  }
+
   String _formatCurrency(int value) {
     return 'Rp ${value.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
   }
@@ -239,7 +264,7 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                                       if (value == null || value.isEmpty) return 'Harus diisi';
                                       final newValue = int.tryParse(value);
                                       if (newValue == null) return 'Harus angka';
-                                      if (newValue <= _standAwal) return 'Stand baru harus lebih besar';
+                                      // Tidak perlu validasi harus lebih besar dari stand awal
                                       return null;
                                     },
                                   ),
@@ -287,26 +312,48 @@ class _FormKalkulasiScreenState extends State<FormKalkulasiScreen> {
                         ),
                       ),
                       SizedBox(height: 24),
-                      Container(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _lanjutPembayaran,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFF2196F3),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _simpanPencatatanSaja,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(25),
+                                ),
+                              ),
+                              child: Text(
+                                'Simpan Saja',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ),
-                          child: Text(
-                            'Lanjut ke Pembayaran',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _lanjutPembayaran,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Color(0xFF2196F3),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(25),
+                                ),
+                              ),
+                              child: Text(
+                                'Lanjut ke Pembayaran',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
                       SizedBox(height: 20),
                     ],
