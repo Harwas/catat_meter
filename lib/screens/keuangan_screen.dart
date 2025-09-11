@@ -66,6 +66,9 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
       final bulanIni = now.month;
       final tahunIni = now.year;
 
+      final role = widget.currentUser['role'];
+      final uid = widget.currentUser['uid'];
+
       // Ambil Pendapatan dari pembayaran
       final pembayaranSnap = await FirebaseDatabase.instance.ref('pembayaran').get();
       pendapatan = [];
@@ -74,29 +77,15 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
         pendapatan = data.entries.map((e) {
           final item = Map<dynamic, dynamic>.from(e.value);
           final tanggalStr = item['tanggal'] ?? '';
-          DateTime? tgl;
-          try {
-            tgl = DateTime.parse(tanggalStr);
-          } catch (_) {}
           return KeuanganItem(
             id: e.key,
             pelangganId: item['pelanggan_id']?.toString() ?? '',
             pelangganNama: item['pelanggan_nama']?.toString() ?? '',
-            pembayaran: (item['pembayaran'] ?? 0) is int
-                ? (item['pembayaran'] ?? 0)
-                : int.tryParse(item['pembayaran'].toString()) ?? 0,
-            standAwal: (item['stand_awal'] ?? 0) is int
-                ? (item['stand_awal'] ?? 0)
-                : int.tryParse(item['stand_awal'].toString()) ?? 0,
-            standAkhir: (item['stand_baru'] ?? 0) is int
-                ? (item['stand_baru'] ?? 0)
-                : int.tryParse(item['stand_baru'].toString()) ?? 0,
-            terhutang: (item['terhutang'] ?? 0) is int
-                ? (item['terhutang'] ?? 0)
-                : int.tryParse(item['terhutang'].toString()) ?? 0,
-            totalTagihan: (item['total_tagihan'] ?? 0) is int
-                ? (item['total_tagihan'] ?? 0)
-                : int.tryParse(item['total_tagihan'].toString()) ?? 0,
+            pembayaran: int.tryParse(item['pembayaran'].toString()) ?? 0,
+            standAwal: int.tryParse(item['stand_awal'].toString()) ?? 0,
+            standAkhir: int.tryParse(item['stand_baru'].toString()) ?? 0,
+            terhutang: int.tryParse(item['terhutang'].toString()) ?? 0,
+            totalTagihan: int.tryParse(item['total_tagihan'].toString()) ?? 0,
             tanggal: tanggalStr,
             kategori: 'pendapatan',
           );
@@ -105,7 +94,13 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
           try {
             tgl = DateTime.parse(item.tanggal);
           } catch (_) {}
-          return item.pembayaran > 0 && tgl != null && tgl.month == bulanIni && tgl.year == tahunIni;
+          // Filter: hanya bulan & tahun ini
+          final inThisMonth = tgl != null && tgl.month == bulanIni && tgl.year == tahunIni;
+          // Filter: cater hanya lihat data miliknya
+          final byRole = (role == 'cater')
+              ? (data[item.id]?['petugas_id']?.toString() == uid)
+              : true;
+          return item.pembayaran > 0 && inThisMonth && byRole;
         }).toList();
       }
 
@@ -117,15 +112,11 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
         pemasukkan = data.entries.map((e) {
           final item = Map<dynamic, dynamic>.from(e.value);
           final tanggalStr = item['tanggal'] ?? '';
-          DateTime? tgl;
-          try {
-            tgl = DateTime.parse(tanggalStr);
-          } catch (_) {}
           return KeuanganItem(
             id: e.key,
             kategori: 'pemasukkan',
             judul: item['judul'] ?? '',
-            nominal: item['nominal'] ?? 0,
+            nominal: int.tryParse(item['nominal'].toString()) ?? 0,
             tanggal: tanggalStr,
           );
         }).where((item) {
@@ -133,7 +124,11 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
           try {
             tgl = DateTime.parse(item.tanggal);
           } catch (_) {}
-          return tgl != null && tgl.month == bulanIni && tgl.year == tahunIni;
+          final inThisMonth = tgl != null && tgl.month == bulanIni && tgl.year == tahunIni;
+          final byRole = (role == 'cater')
+              ? (data[item.id]?['petugas_id']?.toString() == uid)
+              : true;
+          return inThisMonth && byRole;
         }).toList();
       }
 
@@ -145,15 +140,11 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
         pengeluaran = data.entries.map((e) {
           final item = Map<dynamic, dynamic>.from(e.value);
           final tanggalStr = item['tanggal'] ?? '';
-          DateTime? tgl;
-          try {
-            tgl = DateTime.parse(tanggalStr);
-          } catch (_) {}
           return KeuanganItem(
             id: e.key,
             kategori: 'pengeluaran',
             judul: item['judul'] ?? '',
-            nominal: item['nominal'] ?? 0,
+            nominal: int.tryParse(item['nominal'].toString()) ?? 0,
             tanggal: tanggalStr,
           );
         }).where((item) {
@@ -161,7 +152,11 @@ class _KeuanganScreenState extends State<KeuanganScreen> {
           try {
             tgl = DateTime.parse(item.tanggal);
           } catch (_) {}
-          return tgl != null && tgl.month == bulanIni && tgl.year == tahunIni;
+          final inThisMonth = tgl != null && tgl.month == bulanIni && tgl.year == tahunIni;
+          final byRole = (role == 'cater')
+              ? (data[item.id]?['petugas_id']?.toString() == uid)
+              : true;
+          return inThisMonth && byRole;
         }).toList();
       }
     } catch (e) {
